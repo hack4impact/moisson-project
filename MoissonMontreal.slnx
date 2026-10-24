@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MoissonMontreal.Api/MoissonMontreal.Api.csproj" />
+    <Project Path="src/MoissonMontreal.Core/MoissonMontreal.Core.csproj" />
+    <Project Path="src/MoissonMontreal.Desktop/MoissonMontreal.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MoissonMontreal.Tests/MoissonMontreal.Tests.csproj" />
+  </Folder>
+</Solution>
