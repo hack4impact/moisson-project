@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("Moisson")
     ?? throw new InvalidOperationException(
         "La chaîne de connexion 'Moisson' est absente. Définissez ConnectionStrings__Moisson " +
-        "ou utilisez 'dotnet user-secrets'. ");
+        "ou utilisez 'dotnet user-secrets'.");
 
 
 // Add services to the container.
