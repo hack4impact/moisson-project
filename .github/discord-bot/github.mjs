@@ -150,10 +150,6 @@ async function listIssues(owner, repo, query) {
   return out
 }
 
-export async function listOpenIssues(owner, repo) {
-  return listIssues(owner, repo, 'state=open')
-}
-
 /** Every issue filed against one milestone — closed ones included, for the ratio. */
 export async function listMilestoneIssues(
   owner,

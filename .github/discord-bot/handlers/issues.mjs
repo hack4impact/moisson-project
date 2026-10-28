@@ -59,61 +59,6 @@ async function announceUnblocked(owner, repo, issue, { trigger, block }) {
   })
 }
 
-/** Someone got assigned — tell them whether they can actually start. */
-async function onAssigned(owner, repo, issue, payload) {
-  const target = payload.assignee?.login
-  const block = await getBlockState(owner, repo, issue)
-  const blocking = await countBlocking(owner, repo, issue.number)
-
-  const blockingField = {
-    name: 'Blocking',
-    value: blockingFieldValue(blocking),
-    inline: true,
-  }
-
-  if (!block.blocked) {
-    const urgency = blocking
-      ? ` Worth prioritising — it's ${blockingPhrase(blocking)}.`
-      : ''
-    await sendDiscord({
-      content: `${mention(target)} — you're assigned to #${issue.number} and nothing is blocking it. Ready to work.${urgency}`,
-      pingLogins: [target],
-      embed: {
-        title: `#${issue.number} ${clamp(issue.title, 200)}`,
-        url: issue.html_url,
-        color: COLORS.ready,
-        description: clamp(issue.body, 300) || '_No description._',
-        fields: [
-          blockingField,
-          { name: 'Repo', value: `${owner}/${repo}`, inline: true },
-        ],
-        timestamp: new Date().toISOString(),
-      },
-    })
-    return
-  }
-
-  await sendDiscord({
-    content: `${mention(target)} — you're assigned to #${issue.number}, but it's blocked. Nothing to do yet; I'll ping you the moment it clears.`,
-    pingLogins: [target],
-    embed: {
-      title: `#${issue.number} ${clamp(issue.title, 200)}`,
-      url: issue.html_url,
-      color: COLORS.blocked,
-      fields: [
-        {
-          name: 'Waiting on',
-          value: block.openBlockers.length
-            ? clamp(formatBlockerList(block.openBlockers), 800)
-            : 'a blocking label',
-        },
-        blockingField,
-      ],
-      timestamp: new Date().toISOString(),
-    },
-  })
-}
-
 /** A closed issue can free everything downstream of it. */
 async function onClosed(owner, repo, issue) {
   const dependents = await findDependents(owner, repo, issue.number)
@@ -136,9 +81,6 @@ export async function handleIssues(payload) {
   const repo = repository.name
 
   switch (action) {
-    case 'assigned':
-      return onAssigned(owner, repo, issue, payload)
-
     case 'closed':
       return onClosed(owner, repo, issue)
 

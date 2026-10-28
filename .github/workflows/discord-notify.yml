@@ -2,7 +2,8 @@ name: Discord notifications
 
 on:
   issues:
-    types: [assigned, closed, unlabeled, edited]
+    # No `assigned` on purpose: taking an issue is not announced on Discord.
+    types: [closed, unlabeled, edited]
   # pull_request_target (not pull_request) so notifications also work for PRs opened
   # from forks, which are not given access to secrets. Safe here because the job only
   # ever runs code from the base branch — it never checks out the PR's own code.

@@ -141,34 +141,24 @@ export async function handlePullRequest(payload) {
   }
 }
 
-/** A submitted review is news for the PR author, not the reviewer. */
+/** A request for changes is news for the PR author, not the reviewer. */
 export async function handlePullRequestReview(payload) {
   if (payload.action !== 'submitted') return
 
   const { review, pull_request: pr, repository } = payload
+  // Approvals and plain comments are not announced; only requested changes are.
+  if (String(review.state ?? '').toLowerCase() !== 'changes_requested') return
+
   const author = pr.user?.login
   const reviewer = review.user?.login
 
-  const line = {
-    approved: {
-      text: `${mention(author)} — ${mention(reviewer)} approved #${pr.number}. Good to merge.`,
-      color: COLORS.unblocked,
-    },
-    changes_requested: {
-      text: `${mention(author)} — ${mention(reviewer)} requested changes on #${pr.number}.`,
-      color: COLORS.review,
-    },
-  }[String(review.state ?? '').toLowerCase()]
-
-  if (!line) return // plain comments would just be noise
-
   await sendDiscord({
     review: true,
-    content: line.text,
+    content: `${mention(author)} — ${mention(reviewer)} requested changes on #${pr.number}.`,
     // The reviewer is pinged as well as the author: they asked for a change and will
     // want the thread in their notifications when the revision lands.
     pingLogins: [...new Set([author, reviewer].filter(Boolean))],
-    embed: prEmbed(pr, repository, line.color, [
+    embed: prEmbed(pr, repository, COLORS.review, [
       {
         name: 'Review',
         value: clamp(review.body, 500) || '_No comment left._',
