@@ -1,0 +1,41 @@
+name: Discord sprint progress
+
+on:
+  schedule:
+    # 13:00 UTC = 09:00 Montreal (EDT) / 08:00 (EST), Wednesday and Saturday.
+    # Mid-week to course-correct, weekend to see what the week actually landed.
+    - cron: '0 13 * * 3,6'
+  # Lets you post a check-in on demand from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'progress (% complete) or overdue (who is late)'
+        type: choice
+        options: [progress, overdue]
+        default: progress
+
+permissions:
+  issues: read
+  contents: read
+
+jobs:
+  progress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/discord-bot
+          sparse-checkout-cone-mode: true
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Post sprint check-in
+        run: node .github/discord-bot/sprint.mjs
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_USER_MAP: ${{ secrets.DISCORD_USER_MAP }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ inputs.mode || 'progress' }}
+          # Set to false to name each teammate instead of firing a real @everyone.
+          ALLOW_EVERYONE: 'true'

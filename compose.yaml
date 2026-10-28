@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:17
+    container_name: moisson-db
+    environment:
+      POSTGRES_USER: moisson
+      POSTGRES_PASSWORD: moisson
+      POSTGRES_DB: moisson_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

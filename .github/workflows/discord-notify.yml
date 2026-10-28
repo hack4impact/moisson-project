@@ -1,0 +1,49 @@
+name: Discord notifications
+
+on:
+  issues:
+    types: [assigned, closed, unlabeled, edited]
+  # pull_request_target (not pull_request) so notifications also work for PRs opened
+  # from forks, which are not given access to secrets. Safe here because the job only
+  # ever runs code from the base branch — it never checks out the PR's own code.
+  pull_request_target:
+    # ready_for_review pairs with opened: drafts are skipped when they appear and
+    # announced when the author says they are ready, so neither is missed or early.
+    types: [opened, ready_for_review, review_requested, closed]
+  pull_request_review:
+    types: [submitted]
+
+# No concurrency group on purpose. Grouping made GitHub cancel queued runs whenever
+# several events arrived together, and real notifications were dropped that way. An
+# occasional duplicate message is a much smaller problem than one that never arrives.
+
+permissions:
+  issues: read
+  pull-requests: read
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Fetch only the bot itself, not the whole app — this repo is a .NET solution
+      # and everything else in it is dead weight for a notification.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/discord-bot
+          sparse-checkout-cone-mode: true
+          fetch-depth: 1
+          persist-credentials: false
+
+      # No actions/setup-node: the runner image already ships a current Node, and the
+      # bot has no dependencies, so setting one up cost ~5s and bought nothing.
+      # No npm install for the same reason.
+      - name: Send Discord notification
+        run: node .github/discord-bot/notify.mjs
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_REVIEW_WEBHOOK_URL: ${{ secrets.DISCORD_REVIEW_WEBHOOK_URL }}
+          DISCORD_USER_MAP: ${{ secrets.DISCORD_USER_MAP }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BLOCKED_LABELS: blocked

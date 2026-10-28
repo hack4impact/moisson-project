@@ -1,0 +1,52 @@
+name: Discord reminders
+
+on:
+  schedule:
+    # 13:00 UTC = 09:00 Montreal (EDT) / 08:00 (EST), every second day of the month.
+    # Carries two digests: work that has gone quiet, and sprints past their due date.
+    - cron: '0 13 */2 * *'
+  # Lets you run it on demand from the Actions tab without waiting for the schedule.
+  workflow_dispatch:
+    inputs:
+      stale_days:
+        description: 'Remind about issues with no activity for this many days'
+        required: false
+        default: '2'
+
+permissions:
+  issues: read
+  contents: read
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/discord-bot
+          sparse-checkout-cone-mode: true
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Send reminder digest
+        run: node .github/discord-bot/reminders.mjs
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_USER_MAP: ${{ secrets.DISCORD_USER_MAP }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STALE_DAYS: ${{ inputs.stale_days || '2' }}
+          BLOCKED_LABELS: blocked
+
+      # Runs even if the digest above failed: the two are independent, and a late
+      # sprint is exactly the thing you do not want silently dropped.
+      - name: Chase overdue sprints
+        if: always()
+        run: node .github/discord-bot/sprint.mjs
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_USER_MAP: ${{ secrets.DISCORD_USER_MAP }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: overdue
+          # Only fires for overdue issues nobody has been assigned to.
+          ALLOW_EVERYONE: 'true'
