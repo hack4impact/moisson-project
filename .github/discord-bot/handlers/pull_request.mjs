@@ -117,6 +117,7 @@ async function onClosed(payload) {
   const closes = closesIssues(pr)
 
   await sendDiscord({
+    review: true,
     content: `${mention(author)} — your PR #${pr.number} was merged into \`${pr.base?.ref}\` by ${mention(merger)}. 🎉`,
     pingLogins: [...new Set([author, merger].filter(Boolean))],
     embed: prEmbed(pr, repository, COLORS.merged, [
