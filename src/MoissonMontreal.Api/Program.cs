@@ -9,9 +9,13 @@ var connectionString = builder.Configuration.GetConnectionString("Moisson")
         "La chaîne de connexion 'Moisson' est absente. Définissez ConnectionStrings__Moisson " +
         "ou utilisez 'dotnet user-secrets' (voir README).");
 
-builder.Services.AddDbContext<MoissonDbContext>(options => options.UseNpgsql(connectionString));
 
 // Add services to the container.
+
+builder.Services.AddDbContext<MoissonDbContext>(options => options.UseNpgsql(connectionString));
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<MoissonDbContext>("database");
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -30,5 +34,7 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health");
 
 app.Run();
