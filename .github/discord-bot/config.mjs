@@ -59,7 +59,19 @@ function loadUserMap() {
   const map = {}
   for (const [login, id] of Object.entries(raw)) {
     if (login.startsWith('_')) continue // comment keys
-    map[login.toLowerCase()] = String(id)
+
+    // Discord rejects the whole message (400 on allowed_mentions) if a single id is
+    // not a snowflake, so one bad entry would silence the bot for everyone. Accept a
+    // pasted "<@123>" mention, and skip anything else that is not a bare id.
+    const snowflake = String(id).match(/^<?@?!?(\d{17,20})>?$/)?.[1]
+    if (typeof id === 'number' || !snowflake) {
+      console.warn(
+        `::warning::DISCORD_USER_MAP entry for "${login}" is not a Discord user id ` +
+          '(must be a quoted string of 17-20 digits, e.g. "123456789012345678"); skipped.',
+      )
+      continue
+    }
+    map[login.toLowerCase()] = snowflake
   }
   return map
 }
