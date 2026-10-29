@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -18,14 +19,20 @@ public partial class HomeViewModel : ViewModelBase
     public HomeViewModel(IApiClient apiClient)
     {
         _apiClient = apiClient;
-        CheckApiCommand.Execute(null);
     }
 
     [RelayCommand]
     private async Task CheckApiAsync()
     {
         ApiStatus = "Checking the API...";
-        var isReachable = await _apiClient.IsApiReachableAsync();
-        ApiStatus = isReachable ? "API online" : "Server unavailable";
+        try
+        {
+            var isReachable = await _apiClient.IsApiReachableAsync();
+            ApiStatus = isReachable ? "API online" : "Server unavailable";
+        }
+        catch (Exception)
+        {
+            ApiStatus = "Server unavailable";
+        }
     }
 }
