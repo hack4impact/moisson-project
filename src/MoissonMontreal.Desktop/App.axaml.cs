@@ -37,6 +37,7 @@ public partial class App : Application
                 client.BaseAddress = new Uri(apiBaseUrl);
                 client.Timeout = TimeSpan.FromSeconds(15);
             });
+            services.AddSingleton<Func<IApiClient>>(sp => () => sp.GetRequiredService<IApiClient>());
             services.AddSingleton<MainViewModel>();
 
             var serviceProvider = services.BuildServiceProvider();

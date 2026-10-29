@@ -1,3 +1,4 @@
+using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MoissonMontreal.Desktop.Services;
@@ -6,7 +7,7 @@ namespace MoissonMontreal.Desktop.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
-    private readonly IApiClient _apiClient;
+    private readonly Func<IApiClient> _createApiClient;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSignedIn))]
@@ -14,9 +15,9 @@ public partial class MainViewModel : ViewModelBase
 
     public bool IsSignedIn => CurrentPage is not LoginViewModel;
 
-    public MainViewModel(IApiClient apiClient)
+    public MainViewModel(Func<IApiClient> createApiClient)
     {
-        _apiClient = apiClient;
+        _createApiClient = createApiClient;
         CurrentPage = CreateLoginPage();
     }
 
@@ -25,7 +26,7 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void ShowHome()
     {
-        CurrentPage = new HomeViewModel(_apiClient);
+        CurrentPage = new HomeViewModel(_createApiClient());
     }
 
     [RelayCommand]
