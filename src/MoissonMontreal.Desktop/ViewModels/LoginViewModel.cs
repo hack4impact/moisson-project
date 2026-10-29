@@ -1,5 +1,4 @@
 using System;
-using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace MoissonMontreal.Desktop.ViewModels;
@@ -12,8 +11,7 @@ public partial class LoginViewModel : ViewModelBase
     /// <summary>
     /// Title shown at the top of the login page.
     /// </summary>
-    [ObservableProperty]
-    public partial string Title { get; set; } = "Moisson Montréal";
+    public string Title => "Moisson Montréal";
 
     /// <summary>
     /// Action to run once the user is signed in (opens the home page).
