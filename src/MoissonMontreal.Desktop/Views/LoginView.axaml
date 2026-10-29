@@ -7,10 +7,8 @@
     <StackPanel HorizontalAlignment="Center"
                VerticalAlignment="Center"
                Spacing="12">
-        <TextBlock Text="{Binding Title}"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center" />
-        <Button Content="Sign in" Command="{Binding SignInCommand}"></Button>
+        <TextBlock Text="{Binding Title}"/>
+        <Button Content="Sign in" Command="{Binding SignInCommand}"/>
     </StackPanel>             
 
 </UserControl>
