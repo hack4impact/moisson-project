@@ -17,6 +17,21 @@ public partial class HomeViewModel : ViewModelBase
     private readonly IApiClient _apiClient;
 
     /// <summary>
+    /// Status message shown while the API check is running.
+    /// </summary>
+    private const string CheckingApiMessage = "Checking the API...";
+
+    /// <summary>
+    /// Status message shown when the API cannot be reached.
+    /// </summary>
+    private const string ServerUnavailableMessage = "Server unavailable";
+
+    /// <summary>
+    /// Status message shown when the API answered successfully.
+    /// </summary>
+    private const string ApiOnlineMessage = "API online";
+
+    /// <summary>
     /// Title shown at the top of the home page.
     /// </summary>
     [ObservableProperty]
@@ -26,7 +41,7 @@ public partial class HomeViewModel : ViewModelBase
     /// API status message shown to the user.
     /// </summary>
     [ObservableProperty]
-    public partial string ApiStatus { get; set; } = "Checking the API...";
+    public partial string ApiStatus { get; set; } = CheckingApiMessage;
 
     /// <summary>
     /// Creates the home page. The API check starts when the view is loaded.
@@ -38,20 +53,20 @@ public partial class HomeViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Checks the API and updates <see cref="ApiStatus"/>. Any error shows "Server unavailable" instead of crashing the app.
+    /// Checks the API and updates <see cref="ApiStatus"/>. Any error shows <see cref="ServerUnavailableMessage"/> instead of crashing the app.
     /// </summary>
     [RelayCommand]
     private async Task CheckApiAsync()
     {
-        ApiStatus = "Checking the API...";
+        ApiStatus = CheckingApiMessage;
         try
         {
             var isReachable = await _apiClient.IsApiReachableAsync();
-            ApiStatus = isReachable ? "API online" : "Server unavailable";
+            ApiStatus = isReachable ? ApiOnlineMessage : ServerUnavailableMessage;
         }
         catch (Exception)
         {
-            ApiStatus = "Server unavailable";
+            ApiStatus = ServerUnavailableMessage;
         }
     }
 }
