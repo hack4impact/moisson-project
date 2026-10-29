@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -54,13 +55,14 @@ public partial class HomeViewModel : ViewModelBase
     /// <summary>
     /// Checks the API and updates <see cref="ApiStatus"/>. Any error shows <see cref="ServerUnavailableMessage"/> instead of crashing the app.
     /// </summary>
+    /// <param name="cancellationToken">Cancelled when the user leaves the home page, so the check doesn't keep running.</param>
     [RelayCommand]
-    private async Task CheckApiAsync()
+    private async Task CheckApiAsync(CancellationToken cancellationToken)
     {
         ApiStatus = CheckingApiMessage;
         try
         {
-            var isReachable = await _apiClient.IsApiReachableAsync();
+            var isReachable = await _apiClient.IsApiReachableAsync(cancellationToken);
             ApiStatus = isReachable ? ApiOnlineMessage : ServerUnavailableMessage;
         }
         catch (Exception)

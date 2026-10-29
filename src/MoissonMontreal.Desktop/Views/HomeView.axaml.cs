@@ -31,4 +31,18 @@ public partial class HomeView : UserControl
             viewModel.CheckApiCommand.Execute(null);
         }
     }
+
+    /// <summary>
+    /// Cancels the API check when the view is removed fromt the screen. (for example when the user goes to another page).
+    /// </summary>
+    /// <param name="e">Information about the event.</param>
+    protected override void OnUnloaded(RoutedEventArgs e)
+    {
+        base.OnUnloaded(e);
+
+        if (DataContext is HomeViewModel viewModel)
+        {
+            viewModel.CheckApiCommand.Cancel();
+        }
+    }
 }

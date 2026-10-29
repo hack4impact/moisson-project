@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using System.Net.Http;
+using System.Threading;
 
 namespace MoissonMontreal.Desktop.Services;
 
@@ -22,13 +23,13 @@ public class ApiClient : IApiClient
         _httpClient = httpClient;
     }
 
-    /// <inheritdoc/> 
-    public async Task<bool> IsApiReachableAsync()
+    /// <inheritdoc/>
+    public async Task<bool> IsApiReachableAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             // Any endpoint that answers successfully proves the API is reachable.
-            using var response = await _httpClient.GetAsync("WeatherForecast");
+            using var response = await _httpClient.GetAsync("WeatherForecast", cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch (HttpRequestException)
