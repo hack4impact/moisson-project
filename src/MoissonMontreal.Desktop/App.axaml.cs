@@ -11,13 +11,23 @@ using MoissonMontreal.Desktop.Views;
 
 namespace MoissonMontreal.Desktop;
 
+/// <summary>
+/// Entry point of the Avalonia application: reads the configuration, sets up the services and opens the main window.
+/// </summary>
 public partial class App : Application
 {
+    /// <summary>
+    /// Loads the application's XAML (styles and resources).
+    /// </summary>
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
     }
 
+    /// <summary>
+    /// Runs once Avalonia is ready: reads <c>appsettings.json</c>, registers the services and opens the main window.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when <c>Api:BaseUrl</c> is missing from <c>appsettings.json</c>.</exception>
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
