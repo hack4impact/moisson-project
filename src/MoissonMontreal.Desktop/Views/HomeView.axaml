@@ -4,8 +4,12 @@
              x:Class="MoissonMontreal.Desktop.Views.HomeView"
              x:DataType="vm:HomeViewModel">
 
-    <TextBlock Text="{Binding Title}"
-               HorizontalAlignment="Center"
-               VerticalAlignment="Center" />
+    <StackPanel HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               Spacing="12">
+        <TextBlock Text="{Binding Title}"/>
+        <TextBlock Text="{Binding ApiStatus}"/>
+        <Button Content="Retry" Command="{Binding CheckApiCommand}"/>
+    </StackPanel>           
 
 </UserControl>
