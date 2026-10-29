@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MoissonMontreal.Desktop.ViewModels"
+             x:Class="MoissonMontreal.Desktop.Views.DonorsView"
+             x:DataType="vm:DonorsViewModel">
+
+    <TextBlock Text="{Binding Title}"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center" />
+
+</UserControl>
