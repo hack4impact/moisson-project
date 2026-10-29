@@ -34,8 +34,7 @@ public partial class HomeViewModel : ViewModelBase
     /// <summary>
     /// Title shown at the top of the home page.
     /// </summary>
-    [ObservableProperty]
-    public partial string Title { get; set; } = "Welcome";
+    public string Title => "Welcome";
 
     /// <summary>
     /// API status message shown to the user.
