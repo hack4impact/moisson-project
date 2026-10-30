@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MoissonMontreal.Desktop.ViewModels"
+             xmlns:design="using:MoissonMontreal.Desktop.Design"
+             x:Class="MoissonMontreal.Desktop.Views.LoginView"
+             x:DataType="vm:LoginViewModel"
+             Design.DataContext="{x:Static design:DesignData.Login}">
+
+    <StackPanel HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               Spacing="12">
+        <TextBlock Text="{Binding Title}"/>
+        <Button Content="Sign in" Command="{Binding SignInCommand}"/>
+    </StackPanel>             
+
+</UserControl>
