@@ -28,8 +28,9 @@ public class ApiClient : IApiClient
     {
         try
         {
-            // Any endpoint that answers successfully proves the API is reachable.
-            using var response = await _httpClient.GetAsync("WeatherForecast", cancellationToken);
+            // The health endpoint returns 200 only when the API and its database both work (503 if the database is down),
+            // so "reachable" means the whole server is ready.
+            using var response = await _httpClient.GetAsync("health", cancellationToken);
             return response.IsSuccessStatusCode;
         }
         catch (HttpRequestException)
