@@ -4,6 +4,10 @@
              x:Class="MoissonMontreal.Desktop.Views.DonorsView"
              x:DataType="vm:DonorsViewModel">
 
+    <Design.DataContext>
+        <vm:DonorsViewModel />
+    </Design.DataContext>
+
     <TextBlock Text="{Binding Title}"
                HorizontalAlignment="Center"
                VerticalAlignment="Center" />

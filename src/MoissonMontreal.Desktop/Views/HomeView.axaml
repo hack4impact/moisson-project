@@ -1,8 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:MoissonMontreal.Desktop.ViewModels"
+             xmlns:design="using:MoissonMontreal.Desktop.Design"
              x:Class="MoissonMontreal.Desktop.Views.HomeView"
-             x:DataType="vm:HomeViewModel">
+             x:DataType="vm:HomeViewModel"
+             Design.DataContext="{x:Static design:DesignData.Home}">
 
     <StackPanel HorizontalAlignment="Center"
                VerticalAlignment="Center"
