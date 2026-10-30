@@ -18,13 +18,14 @@ const assigneeLogins = (issue) =>
 async function announceUnblocked(owner, repo, issue, { trigger, block }) {
   if (issue.state !== 'open') return
 
+  // Nobody to tell — an unassigned issue becoming workable is just noise.
+  const assignees = assigneeLogins(issue)
+  if (!assignees.length) return
+
   block ??= await getBlockState(owner, repo, issue)
   if (block.blocked) return
 
-  const assignees = assigneeLogins(issue)
-  const who = assignees.length
-    ? assignees.map(mention).join(' ')
-    : '**Up for grabs** — nobody is assigned'
+  const who = assignees.map(mention).join(' ')
 
   // How much else is waiting on this decides how urgent it is.
   const blocking = await countBlocking(owner, repo, issue.number)
@@ -48,11 +49,7 @@ async function announceUnblocked(owner, repo, issue, { trigger, block }) {
             : 'a blocking label',
         },
         { name: 'Blocking', value: blockingFieldValue(blocking), inline: true },
-        {
-          name: 'Assigned to',
-          value: assignees.length ? assignees.join(', ') : 'nobody',
-          inline: true,
-        },
+        { name: 'Assigned to', value: assignees.join(', '), inline: true },
       ],
       timestamp: new Date().toISOString(),
     },
