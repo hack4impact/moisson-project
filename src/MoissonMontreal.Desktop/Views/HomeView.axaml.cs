@@ -33,7 +33,7 @@ public partial class HomeView : UserControl
     }
 
     /// <summary>
-    /// Cancels the API check when the view is removed fromt the screen. (for example when the user goes to another page).
+    /// Cancels the API check when the view is removed from the screen. (for example when the user goes to another page).
     /// </summary>
     /// <param name="e">Information about the event.</param>
     protected override void OnUnloaded(RoutedEventArgs e)
