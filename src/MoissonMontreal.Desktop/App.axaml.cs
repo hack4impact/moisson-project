@@ -41,6 +41,12 @@ public partial class App : Application
                 ?? throw new InvalidOperationException(
                     $"Missing 'Api:BaseUrl': check that appsettings.json exists in '{AppContext.BaseDirectory}' and contains it.");
 
+            // HttpClient drops the last path segment of a base address without a trailing "/".
+            if (!apiBaseUrl.EndsWith("/"))
+            {
+                apiBaseUrl += "/";
+            }
+
             if (!Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var apiBaseUri)
                 || (apiBaseUri.Scheme != Uri.UriSchemeHttp && apiBaseUri.Scheme != Uri.UriSchemeHttps))
             {
