@@ -1,22 +1,17 @@
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Testcontainers.PostgreSql;
+using MoissonMontreal.Tests.Fixtures;
 
 namespace MoissonMontreal.Tests.Api;
 
-public class HealthEndpointTests : IAsyncLifetime
+[Trait("Category", "Integration")]
+public class HealthEndpointTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17").Build();
-
-    public Task InitializeAsync() => _postgres.StartAsync();
-
-    public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
-
     [Fact]
-    public async Task Health_RetourneHealthy_QuandLaBaseRepond()
+    public async Task Health_ReturnsHealthy_WhenDatabaseIsReachable()
     {
-        await using var factory = CreerFactory(_postgres.GetConnectionString());
+        await using var factory = CreateFactory(postgres.ConnectionString);
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/health");
@@ -26,10 +21,10 @@ public class HealthEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Health_RetourneUnhealthy_QuandLaBaseEstInjoignable()
+    public async Task Health_ReturnsUnhealthy_WhenDatabaseIsUnreachable()
     {
-        // Rien n'écoute sur le port 1 : la connexion échoue immédiatement.
-        await using var factory = CreerFactory("Host=localhost;Port=1;Database=inexistante;Username=test;Timeout=2");
+        // Nothing listens on port 1, so the connection is refused immediately.
+        await using var factory = CreateFactory("Host=127.0.0.1;Port=1;Database=unreachable;Username=test;Timeout=2");
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/health");
@@ -38,7 +33,7 @@ public class HealthEndpointTests : IAsyncLifetime
         Assert.Equal("Unhealthy", await response.Content.ReadAsStringAsync());
     }
 
-    private static WebApplicationFactory<Program> CreerFactory(string connectionString) =>
+    private static WebApplicationFactory<Program> CreateFactory(string connectionString) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment("Testing")
             .UseSetting("ConnectionStrings:Moisson", connectionString));
