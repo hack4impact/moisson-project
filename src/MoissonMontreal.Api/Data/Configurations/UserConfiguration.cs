@@ -4,8 +4,15 @@ using MoissonMontreal.Core.Entities;
 
 namespace MoissonMontreal.Api.Data.Configurations;
 
+/// <summary>
+/// Database rules of the users table and its link to the roles table.
+/// </summary>
 public class UserConfiguration : IEntityTypeConfiguration<User>
 {
+    /// <summary>
+    /// Configures the columns, constraints, unique indexes and role relationship of the users table.
+    /// </summary>
+    /// <param name="builder">Builder used to configure the user entity.</param>
     public void Configure(EntityTypeBuilder<User> builder)
     {
         builder.ToTable(t => t.HasCheckConstraint("ck_users_email_lowercase", "email = lower(email)"));

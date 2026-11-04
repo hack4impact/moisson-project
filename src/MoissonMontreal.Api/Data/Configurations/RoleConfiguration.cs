@@ -4,8 +4,15 @@ using MoissonMontreal.Core.Entities;
 
 namespace MoissonMontreal.Api.Data.Configurations;
 
+/// <summary>
+/// Database rules of the roles table and the four roles inserted by the migration.
+/// </summary>
 public class RoleConfiguration : IEntityTypeConfiguration<Role>
 {
+    /// <summary>
+    /// Configures the columns, unique indexes and seed data of the roles table.
+    /// </summary>
+    /// <param name="builder">Builder used to configure the role entity.</param>
     public void Configure(EntityTypeBuilder<Role> builder)
     {
         builder.Property(r => r.Id).ValueGeneratedNever();

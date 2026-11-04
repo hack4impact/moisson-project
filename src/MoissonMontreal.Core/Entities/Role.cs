@@ -5,6 +5,9 @@ namespace MoissonMontreal.Core.Entities;
 /// </summary>
 public class Role
 {
+    /// <summary>
+    /// Fixed identifier of the role, from 1 to 4.
+    /// </summary>
     public int Id { get; set; }
 
     /// <summary>
@@ -12,7 +15,13 @@ public class Role
     /// </summary>
     public string Code { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Name of the role shown in the app.
+    /// </summary>
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Users who have this role.
+    /// </summary>
     public ICollection<User> Users { get; set; } = [];
 }
