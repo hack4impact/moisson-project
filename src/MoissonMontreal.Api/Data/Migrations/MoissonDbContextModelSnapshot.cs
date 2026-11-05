@@ -22,6 +22,112 @@ namespace MoissonMontreal.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.Donor", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("text")
+                        .HasColumnName("address");
+
+                    b.Property<string>("ContactPerson")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("contact_person");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("postal_code");
+
+                    b.HasKey("Id")
+                        .HasName("pk_donors");
+
+                    b.ToTable("donors", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_donors_name_not_empty", "length(name) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.FoodItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateOnly>("DonationDate")
+                        .HasColumnType("date")
+                        .HasColumnName("donation_date");
+
+                    b.Property<Guid>("DonorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("donor_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Quality")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)")
+                        .HasColumnName("quality");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.HasKey("Id")
+                        .HasName("pk_food_items");
+
+                    b.HasIndex("DonorId")
+                        .HasDatabaseName("ix_food_items_donor_id");
+
+                    b.ToTable("food_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_food_items_name_not_empty", "length(name) > 0");
+
+                            t.HasCheckConstraint("ck_food_items_quality", "quality IN ('A', 'B', 'C')");
+
+                            t.HasCheckConstraint("ck_food_items_quantity_positive", "quantity > 0");
+
+                            t.HasCheckConstraint("ck_food_items_unit_not_empty", "length(unit) > 0");
+                        });
+                });
+
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Role", b =>
                 {
                     b.Property<int>("Id")
@@ -145,6 +251,18 @@ namespace MoissonMontreal.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.FoodItem", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.Donor", "Donor")
+                        .WithMany("FoodItems")
+                        .HasForeignKey("DonorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_food_items_donors_donor_id");
+
+                    b.Navigation("Donor");
+                });
+
             modelBuilder.Entity("MoissonMontreal.Core.Entities.User", b =>
                 {
                     b.HasOne("MoissonMontreal.Core.Entities.Role", "Role")
@@ -155,6 +273,11 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasConstraintName("fk_users_roles_role_id");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.Donor", b =>
+                {
+                    b.Navigation("FoodItems");
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Role", b =>

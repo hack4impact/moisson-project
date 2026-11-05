@@ -20,6 +20,16 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
     public DbSet<Role> Roles => Set<Role>();
 
     /// <summary>
+    /// Donors stored in the database.
+    /// </summary>
+    public DbSet<Donor> Donors => Set<Donor>();
+
+    /// <summary>
+    /// Food items stored in the database.
+    /// </summary>
+    public DbSet<FoodItem> FoodItems => Set<FoodItem>();
+
+    /// <summary>
     /// Names every table, column, key and index in snake_case.
     /// </summary>
     /// <param name="optionsBuilder">Builder used to configure the context.</param>
