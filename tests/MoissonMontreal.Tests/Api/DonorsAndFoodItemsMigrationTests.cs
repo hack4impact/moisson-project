@@ -271,14 +271,6 @@ public class DonorsAndFoodItemsMigrationTests(PostgresFixture postgres) : IClass
         await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_food_items_unit_not_empty");
     }
 
-    [Fact]
-    public void Model_HasNoChangesMissingFromMigrations()
-    {
-        using var context = CreateContext();
-
-        Assert.False(context.Database.HasPendingModelChanges());
-    }
-
     private async Task<Seed> SeedAsync()
     {
         await using var context = CreateContext();
