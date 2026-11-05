@@ -27,7 +27,8 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
                     b.Property<string>("Address")
                         .HasColumnType("text")
@@ -38,9 +39,9 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("contact_person");
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
@@ -58,7 +59,10 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_donors");
 
-                    b.ToTable("donors", (string)null);
+                    b.ToTable("donors", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_donors_name_not_empty", "length(name) > 0");
+                        });
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.FoodItem", b =>
@@ -66,11 +70,12 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.Property<DateTime?>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp without time zone")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
@@ -111,7 +116,16 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.HasIndex("DonorId")
                         .HasDatabaseName("ix_food_items_donor_id");
 
-                    b.ToTable("food_items", (string)null);
+                    b.ToTable("food_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_food_items_name_not_empty", "length(name) > 0");
+
+                            t.HasCheckConstraint("ck_food_items_quality", "quality IN ('A', 'B', 'C')");
+
+                            t.HasCheckConstraint("ck_food_items_quantity_positive", "quantity > 0");
+
+                            t.HasCheckConstraint("ck_food_items_unit_not_empty", "length(unit) > 0");
+                        });
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.FoodItem", b =>

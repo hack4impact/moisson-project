@@ -6,12 +6,12 @@ namespace MoissonMontreal.Core.Entities;
 public class FoodItem
 {
     /// <summary>
-    /// Identifier of the food item.
+    /// Identifier of the food item, assigned by the database.
     /// </summary>
     public Guid Id { get; set; }
 
     /// <summary>
-    /// Donor who gave this item.
+    /// Identifier of the donor who gave this item.
     /// </summary>
     public Guid DonorId { get; set; }
 
@@ -26,12 +26,12 @@ public class FoodItem
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Amount donated, with up to two decimal places.
+    /// Amount donated, with up to two decimal places. Must be greater than zero.
     /// </summary>
     public decimal Quantity { get; set; }
 
     /// <summary>
-    /// Unit of the quantity, such as kg.
+    /// Unit of the quantity, as free text for now (for example kg).
     /// </summary>
     public string Unit { get; set; } = string.Empty;
 
@@ -46,7 +46,7 @@ public class FoodItem
     public string Quality { get; set; } = string.Empty;
 
     /// <summary>
-    /// When the item was recorded. The database sets this when it is left empty.
+    /// Date and time the item was added, set by the database.
     /// </summary>
-    public DateTime? CreatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }

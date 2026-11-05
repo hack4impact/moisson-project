@@ -6,7 +6,7 @@ namespace MoissonMontreal.Core.Entities;
 public class Donor
 {
     /// <summary>
-    /// Identifier of the donor.
+    /// Identifier of the donor, assigned by the database.
     /// </summary>
     public Guid Id { get; set; }
 
@@ -31,9 +31,9 @@ public class Donor
     public string? ContactPerson { get; set; }
 
     /// <summary>
-    /// When the donor was recorded. The database sets this when it is left empty.
+    /// Date and time the donor was added, set by the database.
     /// </summary>
-    public DateTime? CreatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 
     /// <summary>
     /// Food items given by this donor.

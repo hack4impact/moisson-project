@@ -72,7 +72,7 @@ public class DonorsAndFoodItemsMigrationTests(PostgresFixture postgres) : IClass
         await using var context = CreateContext();
         var saved = await context.Donors.SingleAsync(d => d.Id == seed.DonorId);
 
-        Assert.NotNull(saved.CreatedAt);
+        Assert.NotEqual(default, saved.CreatedAt);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public class DonorsAndFoodItemsMigrationTests(PostgresFixture postgres) : IClass
         await using var context = CreateContext();
         var saved = await context.FoodItems.SingleAsync(f => f.Id == seed.ItemId);
 
-        Assert.NotNull(saved.CreatedAt);
+        Assert.NotEqual(default, saved.CreatedAt);
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public class DonorsAndFoodItemsMigrationTests(PostgresFixture postgres) : IClass
             Quality = "B"
         });
 
-        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_food_items_donors_donor_id");
     }
 
     [Fact]
@@ -181,7 +181,94 @@ public class DonorsAndFoodItemsMigrationTests(PostgresFixture postgres) : IClass
         var donor = await context.Donors.SingleAsync(d => d.Id == seed.DonorId);
         context.Donors.Remove(donor);
 
-        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_food_items_donors_donor_id");
+    }
+
+    [Fact]
+    public async Task SaveChanges_Throws_WhenQualityIsNotABandC()
+    {
+        await using var context = CreateContext();
+        await context.Database.MigrateAsync();
+
+        context.FoodItems.Add(new FoodItem
+        {
+            Donor = new Donor { Name = "Ferme des Îles" },
+            Name = "Pommes",
+            Quantity = 4m,
+            Unit = "caisse",
+            DonationDate = new DateOnly(2026, 11, 3),
+            Quality = "D"
+        });
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_food_items_quality");
+    }
+
+    [Fact]
+    public async Task SaveChanges_Throws_WhenQuantityIsNotPositive()
+    {
+        await using var context = CreateContext();
+        await context.Database.MigrateAsync();
+
+        context.FoodItems.Add(new FoodItem
+        {
+            Donor = new Donor { Name = "Ferme des Îles" },
+            Name = "Pommes",
+            Quantity = -5m,
+            Unit = "kg",
+            DonationDate = new DateOnly(2026, 11, 3),
+            Quality = "A"
+        });
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_food_items_quantity_positive");
+    }
+
+    [Fact]
+    public async Task SaveChanges_Throws_WhenDonorNameIsEmpty()
+    {
+        await using var context = CreateContext();
+        await context.Database.MigrateAsync();
+
+        context.Donors.Add(new Donor { Name = "" });
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_donors_name_not_empty");
+    }
+
+    [Fact]
+    public async Task SaveChanges_Throws_WhenFoodItemNameIsEmpty()
+    {
+        await using var context = CreateContext();
+        await context.Database.MigrateAsync();
+
+        context.FoodItems.Add(new FoodItem
+        {
+            Donor = new Donor { Name = "Ferme des Îles" },
+            Name = "",
+            Quantity = 1m,
+            Unit = "kg",
+            DonationDate = new DateOnly(2026, 11, 3),
+            Quality = "A"
+        });
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_food_items_name_not_empty");
+    }
+
+    [Fact]
+    public async Task SaveChanges_Throws_WhenUnitIsEmpty()
+    {
+        await using var context = CreateContext();
+        await context.Database.MigrateAsync();
+
+        context.FoodItems.Add(new FoodItem
+        {
+            Donor = new Donor { Name = "Ferme des Îles" },
+            Name = "Pommes",
+            Quantity = 1m,
+            Unit = "",
+            DonationDate = new DateOnly(2026, 11, 3),
+            Quality = "A"
+        });
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_food_items_unit_not_empty");
     }
 
     [Fact]
