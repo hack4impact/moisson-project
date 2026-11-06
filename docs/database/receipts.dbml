@@ -1,0 +1,94 @@
+// Receipts and their prices
+// Paste this file into https://dbdiagram.io to render the diagram.
+// Matches the migration 20261106021712_CreateReceipts.
+// donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems
+// and are shown here because receipts link to them.
+
+Table donors {
+  id uuid [not null, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  address text [null]
+  postal_code varchar(20) [null]
+  contact_person varchar(255) [null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [pk, name: 'pk_donors']
+  }
+
+  checks {
+    `length(name) > 0` [name: 'ck_donors_name_not_empty']
+  }
+
+  Note: 'Organizations or people who give food'
+}
+
+Table food_items {
+  id uuid [not null, default: `gen_random_uuid()`]
+  donor_id uuid [not null]
+  name varchar(255) [not null]
+  quantity numeric(12,2) [not null]
+  unit varchar(20) [not null]
+  donation_date date [not null]
+  quality varchar(1) [not null, note: 'A, B or C']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [pk, name: 'pk_food_items']
+    donor_id [name: 'ix_food_items_donor_id']
+  }
+
+  checks {
+    `length(name) > 0` [name: 'ck_food_items_name_not_empty']
+    `quality IN ('A', 'B', 'C')` [name: 'ck_food_items_quality']
+    `quantity > 0` [name: 'ck_food_items_quantity_positive']
+    `length(unit) > 0` [name: 'ck_food_items_unit_not_empty']
+  }
+
+  Note: 'Food donated by a donor, with its date and quality'
+}
+
+Table receipts {
+  id uuid [not null, default: `gen_random_uuid()`]
+  donor_id uuid [not null]
+  total_amount numeric(12,2) [not null, note: 'Sum of the line values, in dollars']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    id [pk, name: 'pk_receipts']
+    donor_id [name: 'ix_receipts_donor_id']
+  }
+
+  checks {
+    `total_amount >= 0` [name: 'ck_receipts_total_amount_not_negative']
+  }
+
+  Note: 'Tax receipts given to donors'
+}
+
+Table receipt_items {
+  receipt_id uuid [not null]
+  food_item_id uuid [not null]
+  unit_price numeric(12,2) [not null, note: 'Price of one unit when the receipt was made']
+  quality_percent numeric(5,2) [not null, note: 'A = 100, B = 50 to 75, C = 0']
+
+  indexes {
+    (receipt_id, food_item_id) [pk, name: 'pk_receipt_items']
+    food_item_id [name: 'ix_receipt_items_food_item_id']
+  }
+
+  checks {
+    `unit_price > 0` [name: 'ck_receipt_items_unit_price_positive']
+    `quality_percent BETWEEN 0 AND 100` [name: 'ck_receipt_items_quality_percent_range']
+  }
+
+  Note: 'Food items on a receipt. Line value = quantity x unit_price x quality_percent / 100'
+}
+
+Ref fk_food_items_donors_donor_id: food_items.donor_id > donors.id [delete: restrict]
+
+Ref fk_receipts_donors_donor_id: receipts.donor_id > donors.id [delete: restrict]
+
+Ref fk_receipt_items_receipts_receipt_id: receipt_items.receipt_id > receipts.id [delete: cascade]
+
+Ref fk_receipt_items_food_items_food_item_id: receipt_items.food_item_id > food_items.id [delete: restrict]
