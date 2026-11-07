@@ -26,7 +26,12 @@ public class Receipt
     public decimal TotalAmount { get; set; }
 
     /// <summary>
-    /// Date and time the receipt was created, set by the database.
+    /// Date of the receipt in Montreal time, set by the database. Used for the tax year.
+    /// </summary>
+    public DateOnly ReceiptDate { get; set; }
+
+    /// <summary>
+    /// Date and time the receipt was created, set by the database. Stored and read back in UTC.
     /// </summary>
     public DateTimeOffset CreatedAt { get; set; }
 

@@ -1,4 +1,4 @@
-﻿START TRANSACTION;
+START TRANSACTION;
 CREATE TABLE donors (
     id uuid NOT NULL DEFAULT (gen_random_uuid()),
     name character varying(255) NOT NULL,

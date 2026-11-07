@@ -69,14 +69,55 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
     }
 
     [Fact]
-    public async Task ReceiptItem_StoresUnitPriceWithCents()
+    public async Task Receipt_SetsReceiptDate_InMontrealTime()
     {
         var seed = await SeedAsync();
 
         await using var context = CreateContext();
-        var saved = await context.ReceiptItems.SingleAsync(i => i.ReceiptId == seed.ReceiptId && i.FoodItemId == seed.ApplesId);
+        var saved = await context.Receipts.SingleAsync(r => r.Id == seed.ReceiptId);
+        var montreal = TimeZoneInfo.FindSystemTimeZoneById("America/Montreal");
 
-        Assert.Equal(2.49m, saved.UnitPrice);
+        Assert.Equal(DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(saved.CreatedAt, montreal).DateTime), saved.ReceiptDate);
+    }
+
+    [Fact]
+    public async Task Receipt_SavesCreatedAt_WhenGivenInMontrealTime()
+    {
+        var seed = await SeedAsync();
+        var newYearsEve = new DateTimeOffset(2026, 12, 31, 20, 0, 0, TimeSpan.FromHours(-5));
+        Guid receiptId;
+
+        await using (var saveContext = CreateContext())
+        {
+            var receipt = new Receipt { DonorId = seed.DonorId, TotalAmount = 0m, CreatedAt = newYearsEve };
+            saveContext.Receipts.Add(receipt);
+            await saveContext.SaveChangesAsync();
+            receiptId = receipt.Id;
+        }
+
+        await using var context = CreateContext();
+        var saved = await context.Receipts.SingleAsync(r => r.Id == receiptId);
+
+        Assert.Equal(newYearsEve, saved.CreatedAt);
+        Assert.Equal(TimeSpan.Zero, saved.CreatedAt.Offset);
+    }
+
+    [Fact]
+    public async Task ReceiptItem_StoresUnitPriceWithFourDecimals()
+    {
+        var seed = await SeedAsync();
+        var foodItemId = await AddFoodItemAsync(seed.DonorId);
+
+        await using (var saveContext = CreateContext())
+        {
+            saveContext.ReceiptItems.Add(Item(seed.ReceiptId, seed.DonorId, foodItemId, unitPrice: 0.125m));
+            await saveContext.SaveChangesAsync();
+        }
+
+        await using var context = CreateContext();
+        var saved = await context.ReceiptItems.SingleAsync(i => i.FoodItemId == foodItemId);
+
+        Assert.Equal(0.125m, saved.UnitPrice);
     }
 
     [Fact]
@@ -91,6 +132,26 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task ReceiptItem_KeepsItsQuantityAndUnit_WhenTheFoodItemChanges()
+    {
+        var seed = await SeedAsync();
+
+        await using (var editContext = CreateContext())
+        {
+            var bread = await editContext.FoodItems.SingleAsync(f => f.Id == seed.BreadId);
+            bread.Quantity = 20m;
+            bread.Unit = "caisse";
+            await editContext.SaveChangesAsync();
+        }
+
+        await using var context = CreateContext();
+        var saved = await context.ReceiptItems.SingleAsync(i => i.ReceiptId == seed.ReceiptId && i.FoodItemId == seed.BreadId);
+
+        Assert.Equal(12.50m, saved.Quantity);
+        Assert.Equal("kg", saved.Unit);
+    }
+
+    [Fact]
     public async Task ReceiptItems_LineValuesAddUpToTotalAmount()
     {
         var seed = await SeedAsync();
@@ -99,7 +160,7 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
         var lineValues = await context.ReceiptItems
             .Where(i => i.ReceiptId == seed.ReceiptId)
             .OrderBy(i => i.FoodItem.Name)
-            .Select(i => i.FoodItem.Quantity * i.UnitPrice * i.QualityPercent / 100m)
+            .Select(i => Math.Round(i.Quantity * i.UnitPrice * i.QualityPercent / 100m, 2))
             .ToListAsync();
         var total = await context.Receipts.Where(r => r.Id == seed.ReceiptId).Select(r => r.TotalAmount).SingleAsync();
 
@@ -108,25 +169,39 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task ReceiptItem_LineValueRoundsHalfAwayFromZero()
+    {
+        var seed = await SeedAsync();
+        var foodItemId = await AddFoodItemAsync(seed.DonorId);
+
+        await using (var saveContext = CreateContext())
+        {
+            saveContext.ReceiptItems.Add(Item(seed.ReceiptId, seed.DonorId, foodItemId, unitPrice: 0.45m, qualityPercent: 50m));
+            await saveContext.SaveChangesAsync();
+        }
+
+        await using var context = CreateContext();
+        var lineValue = await context.ReceiptItems
+            .Where(i => i.FoodItemId == foodItemId)
+            .Select(i => Math.Round(i.Quantity * i.UnitPrice * i.QualityPercent / 100m, 2))
+            .SingleAsync();
+
+        Assert.Equal(0.23m, lineValue);
+        Assert.Equal(Math.Round(0.225m, 2, MidpointRounding.AwayFromZero), lineValue);
+    }
+
+    [Fact]
     public async Task ReceiptItem_AcceptsZeroPercent_ForQualityC()
     {
         var seed = await SeedAsync();
+        var foodItemId = await AddFoodItemAsync(seed.DonorId);
 
         await using var context = CreateContext();
-        var spoiled = new FoodItem
-        {
-            DonorId = seed.DonorId,
-            Name = "Yogourt",
-            Quantity = 2m,
-            Unit = "kg",
-            DonationDate = new DateOnly(2026, 11, 3),
-            Quality = "C"
-        };
         context.Receipts.Add(new Receipt
         {
             DonorId = seed.DonorId,
             TotalAmount = 0m,
-            Items = [new ReceiptItem { FoodItem = spoiled, UnitPrice = 3.00m, QualityPercent = 0m }]
+            Items = [Item(Guid.Empty, seed.DonorId, foodItemId, unitPrice: 3.00m, qualityPercent: 0m)]
         });
 
         await context.SaveChangesAsync();
@@ -165,15 +240,9 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
         var seed = await SeedAsync();
 
         await using var context = CreateContext();
-        context.ReceiptItems.Add(new ReceiptItem
-        {
-            ReceiptId = seed.ReceiptId,
-            FoodItemId = Guid.NewGuid(),
-            UnitPrice = 1m,
-            QualityPercent = 100m
-        });
+        context.ReceiptItems.Add(Item(seed.ReceiptId, seed.DonorId, Guid.NewGuid()));
 
-        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_receipt_items_food_items_food_item_id");
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_receipt_items_food_items_food_item_id_donor_id");
     }
 
     [Fact]
@@ -182,15 +251,51 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
         var seed = await SeedAsync();
 
         await using var context = CreateContext();
-        context.ReceiptItems.Add(new ReceiptItem
-        {
-            ReceiptId = seed.ReceiptId,
-            FoodItemId = seed.BreadId,
-            UnitPrice = 4.00m,
-            QualityPercent = 75m
-        });
+        context.ReceiptItems.Add(Item(seed.ReceiptId, seed.DonorId, seed.BreadId));
 
         await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "pk_receipt_items");
+    }
+
+    [Fact]
+    public async Task SaveReceiptItem_Throws_WhenFoodItemIsOnAnotherReceipt()
+    {
+        var seed = await SeedAsync();
+
+        await using var context = CreateContext();
+        context.Receipts.Add(new Receipt
+        {
+            DonorId = seed.DonorId,
+            TotalAmount = 37.50m,
+            Items = [Item(Guid.Empty, seed.DonorId, seed.BreadId, quantity: 12.50m, qualityPercent: 75m)]
+        });
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ix_receipt_items_food_item_id");
+    }
+
+    [Fact]
+    public async Task SaveReceiptItem_Throws_WhenFoodItemBelongsToAnotherDonor()
+    {
+        var seed = await SeedAsync();
+        var otherDonorId = await AddDonorAsync();
+        var otherFoodItemId = await AddFoodItemAsync(otherDonorId);
+
+        await using var context = CreateContext();
+        context.ReceiptItems.Add(Item(seed.ReceiptId, seed.DonorId, otherFoodItemId));
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_receipt_items_food_items_food_item_id_donor_id");
+    }
+
+    [Fact]
+    public async Task SaveReceiptItem_Throws_WhenReceiptBelongsToAnotherDonor()
+    {
+        var seed = await SeedAsync();
+        var otherDonorId = await AddDonorAsync();
+        var otherFoodItemId = await AddFoodItemAsync(otherDonorId);
+
+        await using var context = CreateContext();
+        context.ReceiptItems.Add(Item(seed.ReceiptId, otherDonorId, otherFoodItemId));
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_receipt_items_receipts_receipt_id_donor_id");
     }
 
     [Fact]
@@ -220,7 +325,7 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
         await using var context = CreateContext();
         context.FoodItems.Remove(await context.FoodItems.SingleAsync(f => f.Id == seed.BreadId));
 
-        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_receipt_items_food_items_food_item_id");
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_receipt_items_food_items_food_item_id_donor_id");
     }
 
     [Fact]
@@ -237,17 +342,39 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
+    public async Task SaveChanges_Throws_WhenQuantityIsNotPositive(int quantity)
+    {
+        var seed = await SeedAsync();
+        var foodItemId = await AddFoodItemAsync(seed.DonorId);
+
+        await using var context = CreateContext();
+        context.ReceiptItems.Add(Item(seed.ReceiptId, seed.DonorId, foodItemId, quantity: quantity));
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_receipt_items_quantity_positive");
+    }
+
+    [Fact]
+    public async Task SaveChanges_Throws_WhenUnitIsEmpty()
+    {
+        var seed = await SeedAsync();
+        var foodItemId = await AddFoodItemAsync(seed.DonorId);
+
+        await using var context = CreateContext();
+        context.ReceiptItems.Add(Item(seed.ReceiptId, seed.DonorId, foodItemId, unit: ""));
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_receipt_items_unit_not_empty");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
     public async Task SaveChanges_Throws_WhenUnitPriceIsNotPositive(int unitPrice)
     {
         var seed = await SeedAsync();
+        var foodItemId = await AddFoodItemAsync(seed.DonorId);
 
         await using var context = CreateContext();
-        context.Receipts.Add(new Receipt
-        {
-            DonorId = seed.DonorId,
-            TotalAmount = 0m,
-            Items = [new ReceiptItem { FoodItemId = seed.BreadId, UnitPrice = unitPrice, QualityPercent = 100m }]
-        });
+        context.ReceiptItems.Add(Item(seed.ReceiptId, seed.DonorId, foodItemId, unitPrice: unitPrice));
 
         await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_receipt_items_unit_price_positive");
     }
@@ -258,14 +385,10 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
     public async Task SaveChanges_Throws_WhenQualityPercentIsOutOfRange(int qualityPercent)
     {
         var seed = await SeedAsync();
+        var foodItemId = await AddFoodItemAsync(seed.DonorId);
 
         await using var context = CreateContext();
-        context.Receipts.Add(new Receipt
-        {
-            DonorId = seed.DonorId,
-            TotalAmount = 0m,
-            Items = [new ReceiptItem { FoodItemId = seed.BreadId, UnitPrice = 4.00m, QualityPercent = qualityPercent }]
-        });
+        context.ReceiptItems.Add(Item(seed.ReceiptId, seed.DonorId, foodItemId, qualityPercent: qualityPercent));
 
         await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_receipt_items_quality_percent_range");
     }
@@ -300,8 +423,8 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
             TotalAmount = 44.97m,
             Items =
             [
-                new ReceiptItem { FoodItem = bread, UnitPrice = 4.00m, QualityPercent = 75m },
-                new ReceiptItem { FoodItem = apples, UnitPrice = 2.49m, QualityPercent = 100m }
+                new ReceiptItem { FoodItem = bread, Quantity = bread.Quantity, Unit = bread.Unit, UnitPrice = 4.00m, QualityPercent = 75m },
+                new ReceiptItem { FoodItem = apples, Quantity = apples.Quantity, Unit = apples.Unit, UnitPrice = 2.49m, QualityPercent = 100m }
             ]
         };
 
@@ -310,6 +433,52 @@ public class ReceiptsMigrationTests(PostgresFixture postgres) : IClassFixture<Po
 
         return new Seed(donor.Id, receipt.Id, bread.Id, apples.Id);
     }
+
+    private async Task<Guid> AddDonorAsync()
+    {
+        await using var context = CreateContext();
+        var donor = new Donor { Name = "Marché Jean-Talon" };
+        context.Donors.Add(donor);
+        await context.SaveChangesAsync();
+
+        return donor.Id;
+    }
+
+    private async Task<Guid> AddFoodItemAsync(Guid donorId)
+    {
+        await using var context = CreateContext();
+        var foodItem = new FoodItem
+        {
+            DonorId = donorId,
+            Name = "Yogourt",
+            Quantity = 1m,
+            Unit = "kg",
+            DonationDate = new DateOnly(2026, 11, 3),
+            Quality = "B"
+        };
+        context.FoodItems.Add(foodItem);
+        await context.SaveChangesAsync();
+
+        return foodItem.Id;
+    }
+
+    private static ReceiptItem Item(
+        Guid receiptId,
+        Guid donorId,
+        Guid foodItemId,
+        decimal quantity = 1m,
+        string unit = "kg",
+        decimal unitPrice = 4.00m,
+        decimal qualityPercent = 100m) => new()
+    {
+        ReceiptId = receiptId,
+        DonorId = donorId,
+        FoodItemId = foodItemId,
+        Quantity = quantity,
+        Unit = unit,
+        UnitPrice = unitPrice,
+        QualityPercent = qualityPercent
+    };
 
     private MoissonDbContext CreateContext(string? database = null)
     {

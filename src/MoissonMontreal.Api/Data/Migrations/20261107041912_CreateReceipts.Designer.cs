@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MoissonMontreal.Api.Data.Migrations
 {
     [DbContext(typeof(MoissonDbContext))]
-    [Migration("20261106021712_CreateReceipts")]
+    [Migration("20261107041912_CreateReceipts")]
     partial class CreateReceipts
     {
         /// <inheritdoc />
@@ -116,6 +116,9 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_food_items");
 
+                    b.HasAlternateKey("Id", "DonorId")
+                        .HasName("ak_food_items_id_donor_id");
+
                     b.HasIndex("DonorId")
                         .HasDatabaseName("ix_food_items_donor_id");
 
@@ -149,6 +152,12 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("donor_id");
 
+                    b.Property<DateOnly>("ReceiptDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("date")
+                        .HasColumnName("receipt_date")
+                        .HasDefaultValueSql("(now() AT TIME ZONE 'America/Montreal')::date");
+
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)")
@@ -156,6 +165,9 @@ namespace MoissonMontreal.Api.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_receipts");
+
+                    b.HasAlternateKey("Id", "DonorId")
+                        .HasName("ak_receipts_id_donor_id");
 
                     b.HasIndex("DonorId")
                         .HasDatabaseName("ix_receipts_donor_id");
@@ -176,25 +188,51 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("food_item_id");
 
+                    b.Property<Guid>("DonorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("donor_id");
+
                     b.Property<decimal>("QualityPercent")
                         .HasPrecision(5, 2)
                         .HasColumnType("numeric(5,2)")
                         .HasColumnName("quality_percent");
 
-                    b.Property<decimal>("UnitPrice")
+                    b.Property<decimal>("Quantity")
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(12, 4)
+                        .HasColumnType("numeric(12,4)")
                         .HasColumnName("unit_price");
 
                     b.HasKey("ReceiptId", "FoodItemId")
                         .HasName("pk_receipt_items");
 
                     b.HasIndex("FoodItemId")
+                        .IsUnique()
                         .HasDatabaseName("ix_receipt_items_food_item_id");
+
+                    b.HasIndex("FoodItemId", "DonorId")
+                        .HasDatabaseName("ix_receipt_items_food_item_id_donor_id");
+
+                    b.HasIndex("ReceiptId", "DonorId")
+                        .HasDatabaseName("ix_receipt_items_receipt_id_donor_id");
 
                     b.ToTable("receipt_items", null, t =>
                         {
                             t.HasCheckConstraint("ck_receipt_items_quality_percent_range", "quality_percent BETWEEN 0 AND 100");
+
+                            t.HasCheckConstraint("ck_receipt_items_quantity_positive", "quantity > 0");
+
+                            t.HasCheckConstraint("ck_receipt_items_unit_not_empty", "length(unit) > 0");
 
                             t.HasCheckConstraint("ck_receipt_items_unit_price_positive", "unit_price > 0");
                         });
@@ -351,17 +389,19 @@ namespace MoissonMontreal.Api.Data.Migrations
                 {
                     b.HasOne("MoissonMontreal.Core.Entities.FoodItem", "FoodItem")
                         .WithMany()
-                        .HasForeignKey("FoodItemId")
+                        .HasForeignKey("FoodItemId", "DonorId")
+                        .HasPrincipalKey("Id", "DonorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_receipt_items_food_items_food_item_id");
+                        .HasConstraintName("fk_receipt_items_food_items_food_item_id_donor_id");
 
                     b.HasOne("MoissonMontreal.Core.Entities.Receipt", "Receipt")
                         .WithMany("Items")
-                        .HasForeignKey("ReceiptId")
+                        .HasForeignKey("ReceiptId", "DonorId")
+                        .HasPrincipalKey("Id", "DonorId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_receipt_items_receipts_receipt_id");
+                        .HasConstraintName("fk_receipt_items_receipts_receipt_id_donor_id");
 
                     b.Navigation("FoodItem");
 

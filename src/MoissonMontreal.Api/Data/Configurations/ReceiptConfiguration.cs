@@ -21,7 +21,11 @@ public class ReceiptConfiguration : IEntityTypeConfiguration<Receipt>
 
         builder.Property(r => r.TotalAmount).HasPrecision(12, 2);
 
-        builder.Property(r => r.CreatedAt).HasDefaultValueSql("now()");
+        builder.Property(r => r.ReceiptDate).HasDefaultValueSql("(now() AT TIME ZONE 'America/Montreal')::date");
+
+        builder.Property(r => r.CreatedAt)
+            .HasDefaultValueSql("now()")
+            .HasConversion(v => v.ToUniversalTime(), v => v);
 
         builder.HasOne(r => r.Donor)
             .WithMany()
