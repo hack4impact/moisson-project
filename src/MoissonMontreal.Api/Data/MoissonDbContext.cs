@@ -30,6 +30,16 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
     public DbSet<FoodItem> FoodItems => Set<FoodItem>();
 
     /// <summary>
+    /// Tax receipts given to donors.
+    /// </summary>
+    public DbSet<Receipt> Receipts => Set<Receipt>();
+
+    /// <summary>
+    /// Food items on each receipt, with the price used to value them.
+    /// </summary>
+    public DbSet<ReceiptItem> ReceiptItems => Set<ReceiptItem>();
+
+    /// <summary>
     /// Names every table, column, key and index in snake_case.
     /// </summary>
     /// <param name="optionsBuilder">Builder used to configure the context.</param>
