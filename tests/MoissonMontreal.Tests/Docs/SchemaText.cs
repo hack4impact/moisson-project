@@ -3,7 +3,8 @@ using System.Text.RegularExpressions;
 namespace MoissonMontreal.Tests.Docs;
 
 /// <summary>
-/// Normalizes types and default values, so that the spelling used in a diagram and the one returned by PostgreSQL compare equal.
+/// Normalizes type names, so that the spelling used in a diagram and the one returned by PostgreSQL compare equal.
+/// Expressions (defaults and checks) are not rewritten here: PostgreSQL rewrites them itself, see PostgresSchemaReader.CanonicalizeAsync.
 /// </summary>
 internal static partial class SchemaText
 {
@@ -24,26 +25,12 @@ internal static partial class SchemaText
         };
     }
 
-    public static string? NormalizeDefault(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var text = value.Trim().Trim('`');
-        text = text.Replace("::text", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("::character varying", "", StringComparison.OrdinalIgnoreCase);
-
-        return WhiteSpaceOrParentheses().Replace(text, "").ToLowerInvariant();
-    }
+    public static string? NormalizeDefault(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim().Trim('`');
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhiteSpace();
 
     [GeneratedRegex(@"^varchar(\(\d+\))?$")]
     private static partial Regex Varchar();
-
-    [GeneratedRegex(@"[\s()]+")]
-    private static partial Regex WhiteSpaceOrParentheses();
 }

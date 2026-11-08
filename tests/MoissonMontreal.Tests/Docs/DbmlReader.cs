@@ -33,7 +33,7 @@ internal static partial class DbmlReader
             else if ((match = RefLine().Match(line)).Success)
             {
                 var settings = Settings(match.Groups[6].Value);
-                var onDelete = settings.GetValueOrDefault("delete") ?? "no action";
+                var onDelete = Unquote(settings.GetValueOrDefault("delete") ?? "no action");
                 Add(foreignKeys, match.Groups[1].Value, new SchemaForeignKey(
                     match.Groups[2].Value,
                     Columns(match.Groups[3].Value),
@@ -64,7 +64,7 @@ internal static partial class DbmlReader
     {
         var columns = new Dictionary<string, SchemaColumn>();
         var indexes = new Dictionary<string, SchemaIndex>();
-        var checks = new HashSet<string>();
+        var checks = new Dictionary<string, string>();
 
         for (var i = 0; i < body.Count; i++)
         {
@@ -85,7 +85,9 @@ internal static partial class DbmlReader
                     }
 
                     var settings = Settings(match.Groups[2].Value);
-                    var name = settings.GetValueOrDefault("name") ?? throw new FormatException($"Index without a name in {table}: {indexLine}");
+                    var name = settings.GetValueOrDefault("name") is { } quoted
+                        ? Unquote(quoted)
+                        : throw new FormatException($"Index without a name in {table}: {indexLine}");
                     var primary = settings.ContainsKey("pk");
                     Add(indexes, name, new SchemaIndex(Columns(match.Groups[1].Value), primary, primary || settings.ContainsKey("unique")), "Index");
                 }
@@ -95,8 +97,8 @@ internal static partial class DbmlReader
                 foreach (var checkLine in TakeBlock(body, ref i).Select(l => l.Trim()).Where(l => l.Length > 0))
                 {
                     var match = CheckLine().Match(checkLine);
-                    var name = match.Success ? Settings(match.Groups[1].Value).GetValueOrDefault("name") : null;
-                    if (name is null || !checks.Add(name))
+                    var name = match.Success ? Settings(match.Groups[2].Value).GetValueOrDefault("name") : null;
+                    if (name is null || !checks.TryAdd(Unquote(name), match.Groups[1].Value))
                     {
                         throw new FormatException($"Check without a unique name in {table}: {checkLine}");
                     }
@@ -162,7 +164,7 @@ internal static partial class DbmlReader
             }
             else
             {
-                settings[part[..colon].Trim().ToLowerInvariant()] = Unquote(part[(colon + 1)..]);
+                settings[part[..colon].Trim().ToLowerInvariant()] = part[(colon + 1)..].Trim();
             }
         }
 
@@ -268,6 +270,6 @@ internal static partial class DbmlReader
     [GeneratedRegex(@"^(\(.*?\)|\w+)\s*\[(.*)\]$")]
     private static partial Regex IndexLine();
 
-    [GeneratedRegex(@"^`.*`\s*\[(.*)\]$")]
+    [GeneratedRegex(@"^`(.*)`\s*\[(.*)\]$")]
     private static partial Regex CheckLine();
 }

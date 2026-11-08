@@ -73,17 +73,13 @@ internal sealed record DatabaseSchema(
             Check(differences, $"Index {name}: columns", Join(expected.Columns), Join(actual.Columns));
             Check(differences, $"Index {name}: primary key", expected.Primary, actual.Primary);
             Check(differences, $"Index {name}: unique", expected.Unique, actual.Unique);
+            Check(differences, $"Index {name}: condition", expected.Where ?? "none", actual.Where ?? "none");
         });
 
-        foreach (var name in diagram.Checks.Except(database.Checks))
+        CompareNamed("Check ", diagram.Checks, database.Checks, differences, (name, expected, actual) =>
         {
-            differences.Add($"Check {name} is in the diagram but not in the database");
-        }
-
-        foreach (var name in database.Checks.Except(diagram.Checks))
-        {
-            differences.Add($"Check {name} is missing from the diagram");
-        }
+            Check(differences, $"Check {name}: expression", expected, actual);
+        });
     }
 
     private static void CompareNamed<T>(
@@ -121,22 +117,24 @@ internal sealed record DatabaseSchema(
 }
 
 /// <summary>
-/// One table: its columns, its indexes (including the primary key and unique constraints) and the names of its checks.
+/// One table: its columns, its indexes (including the primary key and unique constraints) and its checks, by name.
 /// </summary>
 internal sealed record SchemaTable(
     IReadOnlyDictionary<string, SchemaColumn> Columns,
     IReadOnlyDictionary<string, SchemaIndex> Indexes,
-    IReadOnlySet<string> Checks);
+    IReadOnlyDictionary<string, string> Checks);
 
 /// <summary>
-/// One column. Type and default are normalized so the diagram and PostgreSQL spellings compare equal.
+/// One column. The type is normalized so the diagram and PostgreSQL spellings compare equal.
+/// The default is the expression as written, until PostgreSQL rewrites it in its own spelling.
 /// </summary>
 internal sealed record SchemaColumn(string Type, bool NotNull, string? Default, bool Increment);
 
 /// <summary>
-/// One index, primary key or unique constraint, with its columns in order.
+/// One index, primary key or unique constraint, with its columns or expressions in order,
+/// and the condition of a partial index. A diagram cannot show a condition, so it is always null there.
 /// </summary>
-internal sealed record SchemaIndex(IReadOnlyList<string> Columns, bool Primary, bool Unique);
+internal sealed record SchemaIndex(IReadOnlyList<string> Columns, bool Primary, bool Unique, string? Where = null);
 
 /// <summary>
 /// One foreign key, with its delete rule in lowercase words such as restrict or cascade.

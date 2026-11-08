@@ -2,7 +2,7 @@ namespace MoissonMontreal.Tests.Docs;
 
 public class SchemaDriftTests
 {
-    private static readonly string FullSchema = File.ReadAllText(Path.Combine(RepositoryPaths.DatabaseDocs, "schema.dbml"));
+    private static readonly string FullSchema = File.ReadAllText(Path.Combine(RepositoryPaths.DatabaseDocs, "schema.dbml")).ReplaceLineEndings("\n");
 
     public static TheoryData<string, string, string, string> Drifts => new()
     {
@@ -19,6 +19,7 @@ public class SchemaDriftTests
         { "duplicates allowed", "food_item_id [unique, name: 'ix_receipt_items_food_item_id'", "food_item_id [name: 'ix_receipt_items_food_item_id'", "Index ix_receipt_items_food_item_id: unique" },
         { "index columns in another order", "(receipt_id, food_item_id) [pk", "(food_item_id, receipt_id) [pk", "Index pk_receipt_items: columns" },
         { "missing check", "    `quality IN ('A', 'B', 'C')` [name: 'ck_food_items_quality']\n", "", "Check ck_food_items_quality is missing from the diagram" },
+        { "wrong check expression", "`quantity > 0` [name: 'ck_food_items_quantity_positive']", "`quantity >= 0` [name: 'ck_food_items_quantity_positive']", "Check ck_food_items_quantity_positive: expression" },
         { "wrong delete rule", "receipts.(id, donor_id) [delete: cascade]", "receipts.(id, donor_id) [delete: restrict]", "Ref fk_receipt_items_receipts_receipt_id_donor_id: delete rule" },
         { "donor left out of a link", "receipt_items.(food_item_id, donor_id) > food_items.(id, donor_id)", "receipt_items.food_item_id > food_items.id", "Ref fk_receipt_items_food_items_food_item_id_donor_id: columns" },
         { "missing link", "Ref fk_users_roles_role_id: users.role_id > roles.id [delete: restrict]\n", "", "Ref fk_users_roles_role_id is missing from the diagram" },
@@ -102,13 +103,31 @@ public class SchemaDriftTests
         Assert.Equal(expected, SchemaText.NormalizeType(type));
     }
 
-    [Theory]
-    [InlineData("`(now() AT TIME ZONE 'America/Montreal')::date`", "((now() AT TIME ZONE 'America/Montreal'::text))::date")]
-    [InlineData("`now()`", "now()")]
-    [InlineData("`gen_random_uuid()`", "gen_random_uuid()")]
-    [InlineData("true", "true")]
-    public void NormalizeDefault_MatchesThePostgresSpelling(string diagram, string postgres)
+    [Fact]
+    public void Read_GivesTheSameSchema_WithWindowsLineEndings()
     {
-        Assert.Equal(SchemaText.NormalizeDefault(postgres), SchemaText.NormalizeDefault(diagram));
+        var unix = DbmlReader.Read(FullSchema);
+        var windows = DbmlReader.Read(FullSchema.Replace("\n", "\r\n"));
+
+        Assert.Empty(DatabaseSchema.Compare(windows, unix, diagramMustHaveEveryTable: true));
+        Assert.Equal(unix.Tables.Keys, windows.Tables.Keys);
+    }
+
+    [Fact]
+    public void Read_KeepsTheDefaultAndCheckExactlyAsWritten()
+    {
+        var schema = DbmlReader.Read("""
+            Table receipts {
+              receipt_date date [not null, default: `(now() AT TIME ZONE 'America/Montreal')::date`]
+              total_amount numeric(12,2) [not null]
+
+              checks {
+                `(total_amount + 1) * 2 >= 0` [name: 'ck_total']
+              }
+            }
+            """);
+
+        Assert.Equal("(now() AT TIME ZONE 'America/Montreal')::date", schema.Tables["receipts"].Columns["receipt_date"].Default);
+        Assert.Equal("(total_amount + 1) * 2 >= 0", schema.Tables["receipts"].Checks["ck_total"]);
     }
 }

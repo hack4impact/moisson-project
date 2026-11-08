@@ -33,7 +33,7 @@ public partial class DatabaseDocsTests
     public void SchemaPage_DescribesEveryTableOfTheDiagram()
     {
         var schema = DbmlReader.Read(File.ReadAllText(Path.Combine(RepositoryPaths.DatabaseDocs, "schema.dbml")));
-        var page = File.ReadAllText(Path.Combine(RepositoryPaths.DatabaseDocs, "schema.md"));
+        var page = File.ReadAllText(Path.Combine(RepositoryPaths.DatabaseDocs, "schema.md")).ReplaceLineEndings("\n");
 
         Assert.All(schema.Tables.Keys, table => Assert.Contains($"\n### {table}\n", page));
     }
@@ -42,7 +42,7 @@ public partial class DatabaseDocsTests
     [MemberData(nameof(DocsFiles))]
     public void DocsFile_HasNoEmDash(string relativePath)
     {
-        Assert.DoesNotContain('—', File.ReadAllText(Path.Combine(RepositoryPaths.Root, relativePath)));
+        Assert.DoesNotContain('—',File.ReadAllText(Path.Combine(RepositoryPaths.Root, relativePath)));
     }
 
     [Fact]
