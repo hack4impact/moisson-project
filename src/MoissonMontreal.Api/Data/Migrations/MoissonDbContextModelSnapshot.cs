@@ -113,6 +113,9 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_food_items");
 
+                    b.HasAlternateKey("Id", "DonorId")
+                        .HasName("ak_food_items_id_donor_id");
+
                     b.HasIndex("DonorId")
                         .HasDatabaseName("ix_food_items_donor_id");
 
@@ -125,6 +128,110 @@ namespace MoissonMontreal.Api.Data.Migrations
                             t.HasCheckConstraint("ck_food_items_quantity_positive", "quantity > 0");
 
                             t.HasCheckConstraint("ck_food_items_unit_not_empty", "length(unit) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.Receipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("DonorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("donor_id");
+
+                    b.Property<DateOnly>("ReceiptDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("date")
+                        .HasColumnName("receipt_date")
+                        .HasDefaultValueSql("(now() AT TIME ZONE 'America/Montreal')::date");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("total_amount");
+
+                    b.HasKey("Id")
+                        .HasName("pk_receipts");
+
+                    b.HasAlternateKey("Id", "DonorId")
+                        .HasName("ak_receipts_id_donor_id");
+
+                    b.HasIndex("DonorId")
+                        .HasDatabaseName("ix_receipts_donor_id");
+
+                    b.ToTable("receipts", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_receipts_total_amount_not_negative", "total_amount >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.ReceiptItem", b =>
+                {
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("receipt_id");
+
+                    b.Property<Guid>("FoodItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("food_item_id");
+
+                    b.Property<Guid>("DonorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("donor_id");
+
+                    b.Property<decimal>("QualityPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("quality_percent");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(12, 4)
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("unit_price");
+
+                    b.HasKey("ReceiptId", "FoodItemId")
+                        .HasName("pk_receipt_items");
+
+                    b.HasIndex("FoodItemId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_receipt_items_food_item_id");
+
+                    b.HasIndex("FoodItemId", "DonorId")
+                        .HasDatabaseName("ix_receipt_items_food_item_id_donor_id");
+
+                    b.HasIndex("ReceiptId", "DonorId")
+                        .HasDatabaseName("ix_receipt_items_receipt_id_donor_id");
+
+                    b.ToTable("receipt_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_receipt_items_quality_percent_range", "quality_percent BETWEEN 0 AND 100");
+
+                            t.HasCheckConstraint("ck_receipt_items_quantity_positive", "quantity > 0");
+
+                            t.HasCheckConstraint("ck_receipt_items_unit_not_empty", "length(unit) > 0");
+
+                            t.HasCheckConstraint("ck_receipt_items_unit_price_positive", "unit_price > 0");
                         });
                 });
 
@@ -263,6 +370,41 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.Navigation("Donor");
                 });
 
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.Receipt", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.Donor", "Donor")
+                        .WithMany()
+                        .HasForeignKey("DonorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_receipts_donors_donor_id");
+
+                    b.Navigation("Donor");
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.ReceiptItem", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.FoodItem", "FoodItem")
+                        .WithMany()
+                        .HasForeignKey("FoodItemId", "DonorId")
+                        .HasPrincipalKey("Id", "DonorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_receipt_items_food_items_food_item_id_donor_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.Receipt", "Receipt")
+                        .WithMany("Items")
+                        .HasForeignKey("ReceiptId", "DonorId")
+                        .HasPrincipalKey("Id", "DonorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_receipt_items_receipts_receipt_id_donor_id");
+
+                    b.Navigation("FoodItem");
+
+                    b.Navigation("Receipt");
+                });
+
             modelBuilder.Entity("MoissonMontreal.Core.Entities.User", b =>
                 {
                     b.HasOne("MoissonMontreal.Core.Entities.Role", "Role")
@@ -278,6 +420,11 @@ namespace MoissonMontreal.Api.Data.Migrations
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Donor", b =>
                 {
                     b.Navigation("FoodItems");
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.Receipt", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Role", b =>
