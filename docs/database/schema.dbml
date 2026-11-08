@@ -1,0 +1,170 @@
+// Full database schema of the Moisson Montreal receipt app
+// Paste this file into https://dbdiagram.io to render the diagram.
+// Matches the migrations 20261103000127_CreateUsersAndRoles, 20261105163138_CreateDonorsAndFoodItems
+// and 20261107041912_CreateReceipts.
+
+Project moisson_montreal {
+  database_type: 'PostgreSQL'
+  Note: 'Accounts of the employees, donors and their donated food, and the tax receipts with the prices used to value them'
+}
+
+Table roles {
+  id integer [not null, note: 'Fixed values, inserted by the migration']
+  code varchar(50) [not null, note: 'Stable identifier used by the permission checks']
+  name varchar(100) [not null, note: 'Label shown in the app']
+
+  indexes {
+    id [pk, name: 'pk_roles']
+    code [unique, name: 'ix_roles_code']
+    name [unique, name: 'ix_roles_name']
+  }
+
+  Note: 'Department-based roles that determine what a user can see and do'
+}
+
+Table users {
+  id integer [not null, increment]
+  email varchar(256) [not null, note: 'Work email, always lowercase']
+  entra_object_id uuid [null, note: 'Microsoft Entra id, filled on the first sign-in']
+  display_name varchar(200) [not null]
+  role_id integer [not null]
+  is_active boolean [not null, default: true, note: 'False once the admin removes access']
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+  updated_at timestamptz [null, note: 'Stored in UTC, empty if never changed']
+
+  indexes {
+    id [pk, name: 'pk_users']
+    email [unique, name: 'ix_users_email']
+    entra_object_id [unique, name: 'ix_users_entra_object_id']
+    role_id [name: 'ix_users_role_id']
+  }
+
+  checks {
+    `email = lower(email)` [name: 'ck_users_email_lowercase']
+  }
+
+  Note: 'Employees allowed to use the app'
+}
+
+Table donors {
+  id uuid [not null, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  address text [null]
+  postal_code varchar(20) [null]
+  contact_person varchar(255) [null]
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_donors']
+  }
+
+  checks {
+    `length(name) > 0` [name: 'ck_donors_name_not_empty']
+  }
+
+  Note: 'Organizations or people who give food'
+}
+
+Table food_items {
+  id uuid [not null, default: `gen_random_uuid()`]
+  donor_id uuid [not null]
+  name varchar(255) [not null]
+  quantity numeric(12,2) [not null]
+  unit varchar(20) [not null]
+  donation_date date [not null, note: 'Date the food was received']
+  quality varchar(1) [not null, note: 'A, B or C']
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_food_items']
+    (id, donor_id) [unique, name: 'ak_food_items_id_donor_id', note: 'Lets receipt_items check the donor']
+    donor_id [name: 'ix_food_items_donor_id']
+  }
+
+  checks {
+    `length(name) > 0` [name: 'ck_food_items_name_not_empty']
+    `quality IN ('A', 'B', 'C')` [name: 'ck_food_items_quality']
+    `quantity > 0` [name: 'ck_food_items_quantity_positive']
+    `length(unit) > 0` [name: 'ck_food_items_unit_not_empty']
+  }
+
+  Note: 'Food donated by a donor, with its date and quality'
+}
+
+Table receipts {
+  id uuid [not null, default: `gen_random_uuid()`]
+  donor_id uuid [not null]
+  total_amount numeric(12,2) [not null, note: 'Sum of the rounded line values, in dollars']
+  receipt_date date [not null, default: `(now() AT TIME ZONE 'America/Montreal')::date`, note: 'Date in Montreal time, used for the tax year']
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_receipts']
+    (id, donor_id) [unique, name: 'ak_receipts_id_donor_id', note: 'Lets receipt_items check the donor']
+    donor_id [name: 'ix_receipts_donor_id']
+  }
+
+  checks {
+    `total_amount >= 0` [name: 'ck_receipts_total_amount_not_negative']
+  }
+
+  Note: 'Tax receipts given to donors'
+}
+
+Table receipt_items {
+  receipt_id uuid [not null]
+  food_item_id uuid [not null]
+  donor_id uuid [not null, note: 'Donor of both the receipt and the food item']
+  quantity numeric(12,2) [not null, note: 'Copied from the food item when the receipt was made']
+  unit varchar(20) [not null, note: 'Copied from the food item when the receipt was made']
+  unit_price numeric(12,4) [not null, note: 'Price of one unit when the receipt was made']
+  quality_percent numeric(5,2) [not null, note: 'A = 100, B = 50 to 75, C = 0']
+
+  indexes {
+    (receipt_id, food_item_id) [pk, name: 'pk_receipt_items']
+    food_item_id [unique, name: 'ix_receipt_items_food_item_id', note: 'A food item can only be on one receipt']
+    (food_item_id, donor_id) [name: 'ix_receipt_items_food_item_id_donor_id']
+    (receipt_id, donor_id) [name: 'ix_receipt_items_receipt_id_donor_id']
+  }
+
+  checks {
+    `quantity > 0` [name: 'ck_receipt_items_quantity_positive']
+    `length(unit) > 0` [name: 'ck_receipt_items_unit_not_empty']
+    `unit_price > 0` [name: 'ck_receipt_items_unit_price_positive']
+    `quality_percent BETWEEN 0 AND 100` [name: 'ck_receipt_items_quality_percent_range']
+  }
+
+  Note: 'Food items on a receipt. Line value = round(quantity x unit_price x quality_percent / 100, 2), half away from zero'
+}
+
+Ref fk_users_roles_role_id: users.role_id > roles.id [delete: restrict]
+
+Ref fk_food_items_donors_donor_id: food_items.donor_id > donors.id [delete: restrict]
+
+Ref fk_receipts_donors_donor_id: receipts.donor_id > donors.id [delete: restrict]
+
+Ref fk_receipt_items_receipts_receipt_id_donor_id: receipt_items.(receipt_id, donor_id) > receipts.(id, donor_id) [delete: cascade]
+
+Ref fk_receipt_items_food_items_food_item_id_donor_id: receipt_items.(food_item_id, donor_id) > food_items.(id, donor_id) [delete: restrict]
+
+TableGroup accounts {
+  roles
+  users
+}
+
+TableGroup donations {
+  donors
+  food_items
+}
+
+TableGroup tax_receipts {
+  receipts
+  receipt_items
+}
+
+Records roles(id, code, name) {
+  1, 'Supply', 'Supply'
+  2, 'SupplyDirector', 'Supply Director'
+  3, 'Finance', 'Finance'
+  4, 'Admin', 'Admin'
+}

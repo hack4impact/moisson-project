@@ -1,0 +1,159 @@
+# Database overview
+
+This page explains what the receipt app stores and how the information fits together. It is written for everyone on the project, including people who do not write code.
+
+The database has three parts:
+
+| Part | Tables | What it holds |
+| --- | --- | --- |
+| Accounts | roles, users | Who can use the app and what each person is allowed to do |
+| Donations | donors, food_items | Who gave food, what they gave, when, and in what condition |
+| Tax receipts | receipts, receipt_items | The receipts given to donors and the value of each food item on them |
+
+## Diagram
+
+![Database diagram](images/schema.png)
+
+How to read it:
+
+- Each box is a table, which works like a spreadsheet: one row per record, one column per piece of information.
+- A line between two boxes is a link. For example, the line between donors and receipts means that every receipt points to the donor who receives it.
+- The boxes are grouped by part: Accounts, Donations and Tax receipts.
+
+The diagram is generated from [schema.dbml](schema.dbml). To update it, paste the content of that file into [dbdiagram.io](https://dbdiagram.io) and export the image.
+
+## Tables
+
+### roles
+
+The four roles of the app, one per department: Supply, Supply Director, Finance and Admin. A role decides what a person can see and do. For example, Finance gives the second approval on a receipt. The four roles are created automatically and do not need to be entered by hand.
+
+### users
+
+One row per employee who has access to the app: their work email, their name, their role, and whether their access is still active. Employees sign in with their Microsoft work account, so no password is stored in the app. When someone leaves, the admin deactivates their access instead of deleting them, so the history of who did what is kept.
+
+More detail: [Users and roles](users-roles.md).
+
+### donors
+
+The organizations and people who give food: name, address, postal code and contact person. This is the information printed on the tax receipt. Two donors can have the same name, for example two branches of the same grocery chain.
+
+### food_items
+
+The food given by a donor. Each row holds what the food is, the quantity and its unit (for example 12.50 kg), the date it was received, and its quality grade:
+
+| Grade | Meaning | Share of the price kept |
+| --- | --- | --- |
+| A | Comparable to what a grocery store sells | 100 % |
+| B | Has imperfections | Between 50 % and 75 %, a range set by the warehouse director |
+| C | Close to its expiry date | 0 %, no value |
+
+Every food item belongs to one donor.
+
+### receipts
+
+One row per tax receipt. It holds the donor who receives it, the total value in dollars and cents, and the date of the receipt.
+
+More detail: [Receipts and their prices](receipts.md).
+
+### receipt_items
+
+The lines of a receipt, one per food item. Each line keeps a copy of everything used to value the item at the time: the quantity, the unit, the price of one unit and the quality percentage. If a food item or a price is changed later, receipts that already exist do not change.
+
+More detail: [Receipts and their prices](receipts.md).
+
+## How a receipt is valued
+
+The value of each line is:
+
+quantity × price of one unit × quality percentage
+
+The total of the receipt is the sum of its lines. For example, a bakery gives 12.50 kg of bread in grade B and 3 cases of apples in grade A:
+
+| Item | Quantity | Price of one unit | Quality | Value |
+| --- | --- | --- | --- | --- |
+| Bread | 12.50 kg | $4.00 | 75 % | $37.50 |
+| Apples | 3 cases | $2.49 | 100 % | $7.47 |
+| Total | | | | $44.97 |
+
+Each line is rounded to the cent, and an amount exactly halfway, such as $0.225, is rounded up to $0.23. The total is the sum of the rounded lines, so it always matches the detail shown on screen.
+
+## How the information is protected
+
+The database itself refuses anything that would break these rules, even if there were a mistake in the app.
+
+**No duplicate receipts**
+- A food item can be on only one receipt, so the same donation cannot get two tax receipts.
+- The same food item cannot appear twice on one receipt.
+
+**The right donor**
+- A receipt can only list food given by its own donor.
+- A receipt and a food item always belong to a donor that exists.
+
+**Nothing in use can be deleted**
+- A donor cannot be deleted while they have food items or receipts.
+- A food item cannot be deleted while it is on a receipt.
+- A role cannot be deleted while someone has it.
+
+**Exact amounts**
+- All amounts are stored as exact decimal numbers, so no cent is lost along the way.
+- Prices keep up to 4 decimal places, so a price such as $0.125 per kg is stored exactly.
+- Totals and line values are in dollars and cents.
+
+**Valid values**
+- A quantity and a price must be greater than zero.
+- A quality percentage must be between 0 and 100.
+- A quality grade must be A, B or C.
+- A receipt total cannot be negative.
+- Donor names, food names and units cannot be empty.
+
+**Accounts**
+- Two employees cannot have the same email or the same Microsoft account.
+- Emails are stored in lowercase, so the same address cannot be entered twice with different capital letters.
+
+## Dates and times
+
+- **Dates without a time** are stored as plain calendar dates, with no time zone involved. This covers the date a donation was received and the date of a receipt.
+- **The date of a receipt** is set automatically to the current date in Montreal. It decides the tax year. A receipt made on December 31 at 8 p.m. is dated December 31, even though it is already January 1 in universal time.
+- **Moments with a time**, such as when an account or a receipt was created, are stored in universal time (UTC) and shown in Montreal time.
+
+## Not built yet
+
+These parts of the project are planned in their own issues and will add tables later:
+
+| Feature | Issue |
+| --- | --- |
+| Price grid with effective dates, and price lookup by date | #24, #25 |
+| Quality grades with their percentages | #26 |
+| Food catalog with Business Central codes | #27 |
+| Calculation of a donation's value | #30 |
+| Receipt statuses: prepared, approved at two levels, issued, cancelled and replaced | #31 |
+| Receipt numbering, unique and with no gaps | #32 |
+| PDF receipt | #40 |
+
+When cancelled and replacement receipts are added, the rule "a food item can be on only one receipt" will be adjusted so that a replacement receipt can list the same food as the receipt it replaces.
+
+## Words used on this page
+
+| Word | Meaning |
+| --- | --- |
+| Table | A list of records of the same kind, like a spreadsheet tab |
+| Column | One piece of information kept for every record, like a spreadsheet column |
+| Link | A column that points to a record in another table, such as the donor of a receipt |
+| UTC | Universal time, the same everywhere in the world. Montreal is 4 or 5 hours behind it. |
+
+## For developers
+
+Each table comes from one of these migrations:
+
+| Tables | Migration | SQL script | Detailed page |
+| --- | --- | --- | --- |
+| roles, users | [20261103000127_CreateUsersAndRoles](../../src/MoissonMontreal.Api/Data/Migrations/20261103000127_CreateUsersAndRoles.cs) | [0001_create_users_and_roles.sql](sql/0001_create_users_and_roles.sql) | [users-roles.md](users-roles.md) |
+| donors, food_items | [20261105163138_CreateDonorsAndFoodItems](../../src/MoissonMontreal.Api/Data/Migrations/20261105163138_CreateDonorsAndFoodItems.cs) | [0002_create_donors_and_food_items.sql](sql/0002_create_donors_and_food_items.sql) | This page |
+| receipts, receipt_items | [20261107041912_CreateReceipts](../../src/MoissonMontreal.Api/Data/Migrations/20261107041912_CreateReceipts.cs) | [0003_create_receipts.sql](sql/0003_create_receipts.sql) | [receipts.md](receipts.md) |
+
+The SQL scripts must be run in order on an empty database.
+
+Every date and time is converted to UTC before it is written, by [UtcDateTimeOffsetConverter.cs](../../src/MoissonMontreal.Api/Data/UtcDateTimeOffsetConverter.cs), which [MoissonDbContext.cs](../../src/MoissonMontreal.Api/Data/MoissonDbContext.cs) applies to every DateTimeOffset column.
+
+The tests in [SchemaDiagramTests.cs](../../tests/MoissonMontreal.Tests/Docs/SchemaDiagramTests.cs) build an empty database from the migrations and check that every .dbml file in this folder matches it exactly: tables, columns, types, defaults, keys, indexes, checks, links and the roles data. Run them with `dotnet test --filter "FullyQualifiedName~MoissonMontreal.Tests.Docs"`. When a migration changes the schema, update [schema.dbml](schema.dbml), the .dbml of that part, and the images.
