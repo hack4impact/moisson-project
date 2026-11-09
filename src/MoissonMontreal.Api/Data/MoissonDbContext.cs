@@ -49,6 +49,15 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
     }
 
     /// <summary>
+    /// Converts every date and time to UTC before it is written, so a value such as DateTimeOffset.Now can be saved.
+    /// </summary>
+    /// <param name="configurationBuilder">Builder used to configure the conventions of the model.</param>
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTimeOffset>().HaveConversion<UtcDateTimeOffsetConverter>();
+    }
+
+    /// <summary>
     /// Applies every table configuration found in the Configurations folder.
     /// </summary>
     /// <param name="modelBuilder">Builder used to configure the model.</param>
