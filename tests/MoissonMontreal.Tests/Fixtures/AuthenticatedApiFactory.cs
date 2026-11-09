@@ -9,18 +9,22 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.IdentityModel.Validators;
 
 namespace MoissonMontreal.Tests.Fixtures;
 
 public class AuthenticatedApiFactory : WebApplicationFactory<Program>
 {
+    public const string ObjectId = "11111111-1111-1111-1111-111111111111";
+    public const string Name = "Test Employee";
+    public const string Email = "test.employee@moissonmontreal.org";
+    public const string PreferredUsername = "temployee@moissonmontreal.org";
+
     public SecurityKey SigningKey { get; } = new RsaSecurityKey(RSA.Create(2048));
 
     public string TenantId => AzureAd["TenantId"]!;
 
     public string Audience => AzureAd["Audience"]!;
-
-    public string Issuer => IssuerFrom(AzureAd);
 
     private IConfigurationSection AzureAd => Services.GetRequiredService<IConfiguration>().GetSection("AzureAd");
 
@@ -33,42 +37,57 @@ public class AuthenticatedApiFactory : WebApplicationFactory<Program>
             .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .PostConfigure<IConfiguration>((options, configuration) =>
             {
-                var issuer = IssuerFrom(configuration.GetSection("AzureAd"));
-                var openIdConfiguration = new OpenIdConnectConfiguration { Issuer = issuer };
-                openIdConfiguration.SigningKeys.Add(SigningKey);
-                options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(openIdConfiguration);
-                options.TokenValidationParameters.IssuerValidator = null;
-                options.TokenValidationParameters.ValidIssuer = issuer;
+                var azureAd = configuration.GetSection("AzureAd");
+                var metadata = new OpenIdConnectConfiguration
+                {
+                    Issuer = IssuerFor(azureAd, PublishedIssuerTenant(azureAd["TenantId"]!)),
+                };
+                metadata.SigningKeys.Add(SigningKey);
+                var metadataManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(metadata);
+                options.ConfigurationManager = metadataManager;
+                options.TokenValidationParameters.IssuerValidator = AadIssuerValidator
+                    .GetAadIssuerValidator(options.Authority!, new HttpClient(), _ => metadataManager)
+                    .Validate;
             }));
     }
 
     public string CreateToken(
-        string? issuer = null,
+        string? tenantId = null,
         string? audience = null,
         string scope = "access_as_user",
         DateTime? expires = null,
-        SecurityKey? signingKey = null)
+        SecurityKey? signingKey = null,
+        string? email = Email)
     {
+        var tokenTenantId = tenantId ?? TenantId;
         var expiresAt = expires ?? DateTime.UtcNow.AddHours(1);
+        var claims = new Dictionary<string, object>
+        {
+            ["oid"] = ObjectId,
+            ["tid"] = tokenTenantId,
+            ["name"] = Name,
+            ["preferred_username"] = PreferredUsername,
+            ["scp"] = scope,
+        };
+        if (email is not null)
+        {
+            claims["email"] = email;
+        }
 
         return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
-            Issuer = issuer ?? Issuer,
+            Issuer = IssuerFor(AzureAd, tokenTenantId),
             Audience = audience ?? Audience,
             IssuedAt = expiresAt.AddHours(-2),
             NotBefore = expiresAt.AddHours(-2),
             Expires = expiresAt,
-            Claims = new Dictionary<string, object>
-            {
-                ["oid"] = "11111111-1111-1111-1111-111111111111",
-                ["tid"] = TenantId,
-                ["name"] = "Test Employee",
-                ["email"] = "test.employee@moissonmontreal.org",
-                ["scp"] = scope,
-            },
+            Claims = claims,
             SigningCredentials = new SigningCredentials(signingKey ?? SigningKey, SecurityAlgorithms.RsaSha256),
         });
     }
 
-    private static string IssuerFrom(IConfigurationSection azureAd) => $"{azureAd["Instance"]}{azureAd["TenantId"]}/v2.0";
+    private static string IssuerFor(IConfigurationSection azureAd, string tenantId) => $"{azureAd["Instance"]}{tenantId}/v2.0";
+
+    private static string PublishedIssuerTenant(string configuredTenantId) =>
+        Guid.TryParse(configuredTenantId, out _) ? configuredTenantId : "{tenantid}";
 }

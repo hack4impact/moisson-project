@@ -20,11 +20,18 @@ builder.Services.AddHealthChecks()
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
+builder.Services.Configure<JwtBearerOptions>(
+    JwtBearerDefaults.AuthenticationScheme,
+    options => options.MapInboundClaims = false);
+
+var accessAsUserPolicy = new AuthorizationPolicyBuilder()
+    .RequireAuthenticatedUser()
+    .RequireScope("access_as_user")
+    .Build();
+
 builder.Services.AddAuthorizationBuilder()
-    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .RequireScope("access_as_user")
-        .Build());
+    .SetDefaultPolicy(accessAsUserPolicy)
+    .SetFallbackPolicy(accessAsUserPolicy);
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

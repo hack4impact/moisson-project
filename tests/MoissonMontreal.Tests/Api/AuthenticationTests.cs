@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Tokens;
 using MoissonMontreal.Core.Dtos;
 using MoissonMontreal.Tests.Fixtures;
@@ -19,11 +22,20 @@ public class AuthenticationTests(AuthenticatedApiFactory factory) : IClassFixtur
         var user = await response.Content.ReadFromJsonAsync<CurrentUserDto>();
         Assert.Equal(
             new CurrentUserDto(
-                "11111111-1111-1111-1111-111111111111",
-                "Test Employee",
-                "test.employee@moissonmontreal.org",
+                AuthenticatedApiFactory.ObjectId,
+                AuthenticatedApiFactory.Name,
+                AuthenticatedApiFactory.Email,
                 factory.TenantId),
             user);
+    }
+
+    [Fact]
+    public async Task Me_ReturnsPreferredUsernameAsEmail_WhenEmailClaimIsMissing()
+    {
+        var response = await GetMeAsync(factory.CreateToken(email: null));
+
+        var user = await response.Content.ReadFromJsonAsync<CurrentUserDto>();
+        Assert.Equal(AuthenticatedApiFactory.PreferredUsername, user?.Email);
     }
 
     [Fact]
@@ -61,9 +73,9 @@ public class AuthenticationTests(AuthenticatedApiFactory factory) : IClassFixtur
     }
 
     [Fact]
-    public async Task Me_ReturnsUnauthorized_WhenIssuerIsWrong()
+    public async Task Me_ReturnsUnauthorized_WhenTokenComesFromAnotherTenant()
     {
-        var response = await GetMeAsync(factory.CreateToken(issuer: "https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/v2.0"));
+        var response = await GetMeAsync(factory.CreateToken(tenantId: "00000000-0000-0000-0000-000000000000"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -82,6 +94,18 @@ public class AuthenticationTests(AuthenticatedApiFactory factory) : IClassFixtur
         var response = await GetMeAsync(factory.CreateToken(scope: "other_scope"));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DefaultPolicy_RequiresAccessAsUserScope()
+    {
+        var policies = factory.Services.GetRequiredService<IAuthorizationPolicyProvider>();
+
+        var defaultPolicy = await policies.GetDefaultPolicyAsync();
+
+        Assert.Contains(
+            defaultPolicy.Requirements.OfType<ScopeAuthorizationRequirement>(),
+            requirement => requirement.AllowedValues?.Contains("access_as_user") == true);
     }
 
     private async Task<HttpResponseMessage> GetMeAsync(string? token)
