@@ -1,9 +1,9 @@
 using System;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using MoissonMontreal.Desktop.Services;
-using System.Threading.Tasks;
 using Microsoft.Identity.Client;
+using MoissonMontreal.Desktop.Services;
 
 namespace MoissonMontreal.Desktop.ViewModels;
 
@@ -26,13 +26,13 @@ public partial class MainViewModel : ViewModelBase
     /// Page currently shown in the main window.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSignedIn))]
-    public partial ViewModelBase CurrentPage  {get; set;}
+    public partial ViewModelBase CurrentPage { get; set; }
 
     /// <summary>
-    /// <c>true</c> when the user is past the login page; shows the navigation bar and the Sign out button.
+    /// <c>true</c> once the user has signed in, <c>false</c> after sign-out. Shows the navigation bar and the Sign out button.
     /// </summary>
-    public bool IsSignedIn => CurrentPage is not LoginViewModel;
+    [ObservableProperty]
+    public partial bool IsSignedIn { get; set; }
 
     /// <summary>
     /// Creates the main ViewModel and shows the login page.
@@ -50,7 +50,16 @@ public partial class MainViewModel : ViewModelBase
     /// Creates the login page, which opens the home page after sign-in.
     /// </summary>
     /// <returns>A new login page.</returns>
-    private LoginViewModel CreateLoginPage() => new LoginViewModel(_authService, ShowHome);
+    private LoginViewModel CreateLoginPage() => new LoginViewModel(_authService, OnSignedIn);
+
+    /// <summary>
+    /// Marks the user as signed in and shows the home page.
+    /// </summary>
+    private void OnSignedIn()
+    {
+        IsSignedIn = true;
+        ShowHome();
+    }
 
     /// <summary>
     /// Signs the user back in without any window if a session was saved, and shows the home page.
@@ -63,7 +72,7 @@ public partial class MainViewModel : ViewModelBase
         {
             if (await _authService.TrySignInSilentlyAsync())
             {
-                ShowHome();
+                OnSignedIn();
             }
         }
         catch (MsalException)
@@ -106,6 +115,7 @@ public partial class MainViewModel : ViewModelBase
     private async Task SignOutAsync()
     {
         await _authService.SignOutAsync();
+        IsSignedIn = false;
         CurrentPage = CreateLoginPage();
     }
 }
