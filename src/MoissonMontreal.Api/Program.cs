@@ -35,6 +35,9 @@ builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(accessAsUserPolicy)
     .AddPermissionPolicies();
 
+builder.Services.AddScoped<UserLookupService>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
+
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
