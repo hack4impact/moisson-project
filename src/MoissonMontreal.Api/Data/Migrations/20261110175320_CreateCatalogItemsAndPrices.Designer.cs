@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MoissonMontreal.Api.Data.Migrations
 {
     [DbContext(typeof(MoissonDbContext))]
-    [Migration("20261110000447_CreateCatalogItemsAndPrices")]
+    [Migration("20261110175320_CreateCatalogItemsAndPrices")]
     partial class CreateCatalogItemsAndPrices
     {
         /// <inheritdoc />
@@ -105,6 +105,10 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<Guid?>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -147,6 +151,9 @@ namespace MoissonMontreal.Api.Data.Migrations
 
                     b.HasAlternateKey("Id", "DonorId")
                         .HasName("ak_food_items_id_donor_id");
+
+                    b.HasIndex("CatalogItemId")
+                        .HasDatabaseName("ix_food_items_catalog_item_id");
 
                     b.HasIndex("DonorId")
                         .HasDatabaseName("ix_food_items_donor_id");
@@ -432,12 +439,20 @@ namespace MoissonMontreal.Api.Data.Migrations
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.FoodItem", b =>
                 {
+                    b.HasOne("MoissonMontreal.Core.Entities.CatalogItem", "CatalogItem")
+                        .WithMany()
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_food_items_catalog_items_catalog_item_id");
+
                     b.HasOne("MoissonMontreal.Core.Entities.Donor", "Donor")
                         .WithMany("FoodItems")
                         .HasForeignKey("DonorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_food_items_donors_donor_id");
+
+                    b.Navigation("CatalogItem");
 
                     b.Navigation("Donor");
                 });

@@ -49,7 +49,7 @@ The food given by a donor. Each row holds what the food is, the quantity and its
 | B | Has imperfections | Between 50 % and 75 %, a range set by the warehouse director |
 | C | Close to its expiry date | 0 %, no value |
 
-Every food item belongs to one donor.
+Every food item belongs to one donor. It can also point to its catalog item (see catalog_items), which gives its price. That link stays empty until the donation is matched to the catalog, which is still to come.
 
 ### receipts
 
@@ -110,7 +110,7 @@ The database itself refuses anything that would break these rules, even if there
 - A donor cannot be deleted while they have food items or receipts.
 - A food item cannot be deleted while it is on a receipt.
 - A role cannot be deleted while someone has it.
-- A catalog item cannot be deleted while it has prices.
+- A catalog item cannot be deleted while it has prices or while a donation points to it.
 
 **Exact amounts**
 - All amounts are stored as exact decimal numbers, so no cent is lost along the way.
@@ -168,7 +168,7 @@ Each table comes from one of these migrations:
 | roles, users | [20261103000127_CreateUsersAndRoles](../../src/MoissonMontreal.Api/Data/Migrations/20261103000127_CreateUsersAndRoles.cs) | [0001_create_users_and_roles.sql](sql/0001_create_users_and_roles.sql) | [users-roles.md](users-roles.md) |
 | donors, food_items | [20261105163138_CreateDonorsAndFoodItems](../../src/MoissonMontreal.Api/Data/Migrations/20261105163138_CreateDonorsAndFoodItems.cs) | [0002_create_donors_and_food_items.sql](sql/0002_create_donors_and_food_items.sql) | This page |
 | receipts, receipt_items | [20261107041912_CreateReceipts](../../src/MoissonMontreal.Api/Data/Migrations/20261107041912_CreateReceipts.cs) | [0003_create_receipts.sql](sql/0003_create_receipts.sql) | [receipts.md](receipts.md) |
-| catalog_items, prices | [20261110000447_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110000447_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
+| catalog_items, prices | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
 
 The SQL scripts must be run in order on an empty database.
 

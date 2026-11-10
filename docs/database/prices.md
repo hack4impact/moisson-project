@@ -8,6 +8,8 @@ These two tables hold the price grid: the types of food the app knows, and the p
 
 The diagram is generated from [prices.dbml](prices.dbml). To update it, paste the content of that file into [dbdiagram.io](https://dbdiagram.io).
 
+The donors and food_items tables come from an earlier step. They are shown in the diagram because each donation links to its catalog item.
+
 ## Tables
 
 ### catalog_items
@@ -33,6 +35,16 @@ One row per price of a catalog item.
 | unit_price | Price of one unit of the item, in dollars, with up to 4 decimal places. For example, $0.125 per kg. |
 | effective_date | First day the price applies |
 | created_at | Date and time the price was entered, stored in UTC |
+
+### food_items
+
+This migration adds one column to food_items, the table of donations:
+
+| Column | Meaning |
+| --- | --- |
+| catalog_item_id | The catalog item this donation is (see the catalog_items table). It can stay empty until the donation is matched to the catalog. |
+
+This is how a donation finds its price: through its catalog item, at its donation date. Two donations of bread are two rows in food_items that point to the same catalog item, and so to the same price history.
 
 ## How a price history works
 
@@ -76,16 +88,26 @@ Adding a new price to the grid therefore never changes a receipt that already ex
 ## How the tables are linked
 
 1. Each price belongs to exactly one catalog item. A catalog item can have many prices.
-2. Prices are not linked to food_items or to receipts. A donation finds its price through its catalog item and its donation date, and a receipt keeps its own copy.
+2. Each donation (food_items) can point to one catalog item. A catalog item can be used by many donations.
+3. Prices are not linked directly to donations or to receipts. A donation finds its price through its catalog item and its donation date, and a receipt keeps its own copy.
+
+### What is still to come
+
+The link from a donation to its catalog item exists, but nothing fills it in yet:
+
+- Donations imported from Business Central will be matched to the catalog through the Business Central code, and an item that is not recognized will be matched by hand. The PRD describes this as "Import depuis Business Central" and "Correspondance BC ↔ grille". No issue covers it yet.
+- Until a donation is matched, its catalog_item_id stays empty and the donation cannot be valued. The value calculation (#30) must show a clear error for an unmatched donation instead of guessing a price.
+- Donations that existed before this migration start with an empty catalog_item_id.
 
 ## Rules enforced by the database
 
 1. A price must belong to a catalog item that exists.
-2. A catalog item cannot be deleted while it has prices, so a price history is never lost by accident.
-3. A catalog item can have only one price per effective date. Entering a second price for the same item and the same day is refused, even if the amount is the same.
-4. Two different catalog items can each have a price that starts on the same day.
-5. A price must be greater than $0.
-6. A catalog item name cannot be empty.
+2. A catalog item cannot be deleted while it has prices or while a donation points to it, so a price history is never lost by accident.
+3. A donation can only point to a catalog item that exists.
+4. A catalog item can have only one price per effective date. Entering a second price for the same item and the same day is refused, even if the amount is the same.
+5. Two different catalog items can each have a price that starts on the same day.
+6. A price must be greater than $0.
+7. A catalog item name cannot be empty.
 
 ## Rules left to the app
 
@@ -102,9 +124,9 @@ created_at is a precise moment, stored in UTC like every other date and time in 
 
 | Item | Location |
 | --- | --- |
-| Entity Framework migration | [20261110000447_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110000447_CreateCatalogItemsAndPrices.cs) |
+| Entity Framework migration | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) |
 | Equivalent SQL script | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) |
-| Table settings | [CatalogItemConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/CatalogItemConfiguration.cs) and [PriceConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/PriceConfiguration.cs) |
+| Table settings | [CatalogItemConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/CatalogItemConfiguration.cs), [PriceConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/PriceConfiguration.cs) and [FoodItemConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/FoodItemConfiguration.cs) |
 
 The SQL script is generated from the migration with `dotnet ef migrations script CreateReceipts CreateCatalogItemsAndPrices --project src/MoissonMontreal.Api --output docs/database/sql/0004_create_catalog_items_and_prices.sql`. It must be run after the scripts 0001 to 0003. It records itself in the migration history, so Entity Framework will not apply it a second time.
 

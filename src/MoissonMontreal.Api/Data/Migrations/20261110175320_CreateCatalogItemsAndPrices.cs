@@ -11,6 +11,12 @@ namespace MoissonMontreal.Api.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<Guid>(
+                name: "catalog_item_id",
+                table: "food_items",
+                type: "uuid",
+                nullable: true);
+
             migrationBuilder.CreateTable(
                 name: "catalog_items",
                 columns: table => new
@@ -48,20 +54,45 @@ namespace MoissonMontreal.Api.Data.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "ix_food_items_catalog_item_id",
+                table: "food_items",
+                column: "catalog_item_id");
+
+            migrationBuilder.CreateIndex(
                 name: "ix_prices_catalog_item_id_effective_date",
                 table: "prices",
                 columns: new[] { "catalog_item_id", "effective_date" },
                 unique: true);
+
+            migrationBuilder.AddForeignKey(
+                name: "fk_food_items_catalog_items_catalog_item_id",
+                table: "food_items",
+                column: "catalog_item_id",
+                principalTable: "catalog_items",
+                principalColumn: "id",
+                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "fk_food_items_catalog_items_catalog_item_id",
+                table: "food_items");
+
             migrationBuilder.DropTable(
                 name: "prices");
 
             migrationBuilder.DropTable(
                 name: "catalog_items");
+
+            migrationBuilder.DropIndex(
+                name: "ix_food_items_catalog_item_id",
+                table: "food_items");
+
+            migrationBuilder.DropColumn(
+                name: "catalog_item_id",
+                table: "food_items");
         }
     }
 }

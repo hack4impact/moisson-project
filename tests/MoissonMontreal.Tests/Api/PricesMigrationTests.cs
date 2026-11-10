@@ -1,6 +1,8 @@
 using System.Data.Common;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using MoissonMontreal.Api.Data;
 using MoissonMontreal.Core.Entities;
 using MoissonMontreal.Tests.Fixtures;
@@ -227,6 +229,129 @@ public class PricesMigrationTests(PostgresFixture postgres) : IClassFixture<Post
         Assert.NotEqual(default, item.CreatedAt);
         Assert.NotEqual(default, price.CreatedAt);
         Assert.Equal(TimeSpan.Zero, price.CreatedAt.Offset);
+    }
+
+    [Fact]
+    public async Task Donation_IsLinkedToItsCatalogItem_AndReachesItsPriceHistory()
+    {
+        var breadId = await AddCatalogItemAsync("Pain");
+        await AddPriceAsync(breadId, 4.00m, November);
+        await AddPriceAsync(breadId, 4.25m, December);
+        var donationId = await AddDonationAsync(breadId);
+
+        await using var context = CreateContext();
+        var donation = await context.FoodItems
+            .Include(f => f.CatalogItem!).ThenInclude(c => c.Prices)
+            .SingleAsync(f => f.Id == donationId);
+
+        Assert.Equal(breadId, donation.CatalogItemId);
+        Assert.Equal([4.00m, 4.25m], donation.CatalogItem!.Prices.OrderBy(p => p.EffectiveDate).Select(p => p.UnitPrice));
+    }
+
+    [Fact]
+    public async Task TwoDonationsOfTheSameFood_ShareOneCatalogItem()
+    {
+        var breadId = await AddCatalogItemAsync("Pain");
+        var first = await AddDonationAsync(breadId);
+        var second = await AddDonationAsync(breadId);
+
+        await using var context = CreateContext();
+        var catalogItemIds = await context.FoodItems.Where(f => f.Id == first || f.Id == second).Select(f => f.CatalogItemId).ToListAsync();
+
+        Assert.Equal([breadId, breadId], catalogItemIds);
+    }
+
+    [Fact]
+    public async Task Donation_CanStayWithoutCatalogItem_UntilItIsMatched()
+    {
+        await using (var migrateContext = CreateContext())
+        {
+            await migrateContext.Database.MigrateAsync();
+        }
+
+        var donationId = await AddDonationAsync(null);
+
+        await using var context = CreateContext();
+        var donation = await context.FoodItems.SingleAsync(f => f.Id == donationId);
+        Assert.Null(donation.CatalogItemId);
+    }
+
+    [Fact]
+    public async Task Donation_CanBeMatchedToTheCatalogLater()
+    {
+        var breadId = await AddCatalogItemAsync("Pain");
+        var donationId = await AddDonationAsync(null);
+
+        await using (var matchContext = CreateContext())
+        {
+            var donation = await matchContext.FoodItems.SingleAsync(f => f.Id == donationId);
+            donation.CatalogItemId = breadId;
+            await matchContext.SaveChangesAsync();
+        }
+
+        await using var context = CreateContext();
+        Assert.Equal(breadId, (await context.FoodItems.SingleAsync(f => f.Id == donationId)).CatalogItemId);
+    }
+
+    [Fact]
+    public async Task SaveDonation_Throws_WhenCatalogItemDoesNotExist()
+    {
+        await using var context = CreateContext();
+        await context.Database.MigrateAsync();
+        context.FoodItems.Add(NewDonation(Guid.NewGuid()));
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_food_items_catalog_items_catalog_item_id");
+    }
+
+    [Fact]
+    public async Task DeleteCatalogItem_Throws_WhenDonationsUseIt()
+    {
+        var breadId = await AddCatalogItemAsync("Pain");
+        await AddDonationAsync(breadId);
+
+        await using var context = CreateContext();
+        context.CatalogItems.Remove(await context.CatalogItems.SingleAsync(c => c.Id == breadId));
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_food_items_catalog_items_catalog_item_id");
+    }
+
+    [Fact]
+    public async Task Migrate_KeepsExistingDonations_WithoutCatalogItemYet()
+    {
+        await using var context = CreateContext("prices_upgrade");
+        await context.GetService<IMigrator>().MigrateAsync("20261107041912_CreateReceipts");
+        await context.Database.ExecuteSqlRawAsync("""
+            INSERT INTO donors (id, name) VALUES ('00000000-0000-0000-0000-0000000000d1', 'Boulangerie Saint-Laurent');
+            INSERT INTO food_items (donor_id, name, quantity, unit, donation_date, quality)
+            VALUES ('00000000-0000-0000-0000-0000000000d1', 'Pain', 12.50, 'kg', '2026-11-03', 'B');
+            """);
+
+        await context.Database.MigrateAsync();
+
+        var donation = await context.FoodItems.SingleAsync();
+        Assert.Equal("Pain", donation.Name);
+        Assert.Null(donation.CatalogItemId);
+    }
+
+    private static FoodItem NewDonation(Guid? catalogItemId) => new()
+    {
+        Donor = new Donor { Name = "Boulangerie Saint-Laurent" },
+        Name = "Pain",
+        Quantity = 12.50m,
+        Unit = "kg",
+        DonationDate = new DateOnly(2026, 11, 15),
+        Quality = "B",
+        CatalogItemId = catalogItemId
+    };
+
+    private async Task<Guid> AddDonationAsync(Guid? catalogItemId)
+    {
+        await using var context = CreateContext();
+        var donation = NewDonation(catalogItemId);
+        context.FoodItems.Add(donation);
+        await context.SaveChangesAsync();
+
+        return donation.Id;
     }
 
     private async Task<Guid> AddCatalogItemAsync(string name)

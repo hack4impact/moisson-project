@@ -1,7 +1,7 @@
 // Full database schema of the Moisson Montreal receipt app
 // Paste this file into https://dbdiagram.io to render the diagram.
 // Matches the migrations 20261103000127_CreateUsersAndRoles, 20261105163138_CreateDonorsAndFoodItems,
-// 20261107041912_CreateReceipts and 20261110000447_CreateCatalogItemsAndPrices.
+// 20261107041912_CreateReceipts and 20261110175320_CreateCatalogItemsAndPrices.
 
 Project moisson_montreal {
   database_type: 'PostgreSQL'
@@ -73,12 +73,14 @@ Table food_items {
   unit varchar(20) [not null]
   donation_date date [not null, note: 'Date the food was received']
   quality varchar(1) [not null, note: 'A, B or C']
+  catalog_item_id uuid [null, note: 'Catalog item of the donation, which gives its price. Empty until it is matched to the catalog']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
 
   indexes {
     id [pk, name: 'pk_food_items']
     (id, donor_id) [unique, name: 'ak_food_items_id_donor_id', note: 'Lets receipt_items check the donor']
     donor_id [name: 'ix_food_items_donor_id']
+    catalog_item_id [name: 'ix_food_items_catalog_item_id']
   }
 
   checks {
@@ -175,6 +177,8 @@ Table prices {
 Ref fk_users_roles_role_id: users.role_id > roles.id [delete: restrict]
 
 Ref fk_food_items_donors_donor_id: food_items.donor_id > donors.id [delete: restrict]
+
+Ref fk_food_items_catalog_items_catalog_item_id: food_items.catalog_item_id > catalog_items.id [delete: restrict]
 
 Ref fk_receipts_donors_donor_id: receipts.donor_id > donors.id [delete: restrict]
 
