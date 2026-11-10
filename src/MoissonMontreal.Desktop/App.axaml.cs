@@ -64,11 +64,13 @@ public partial class App : Application
             services.AddSingleton(authSettings);
             services.AddSingleton<IAuthService, AuthService>();
 
+            services.AddTransient<AuthorizationHeaderHandler>();
             services.AddHttpClient<IApiClient, ApiClient>(client =>
             {
                 client.BaseAddress = apiBaseUri;
                 client.Timeout = TimeSpan.FromSeconds(15);
-            });
+            })
+            .AddHttpMessageHandler<AuthorizationHeaderHandler>();
             services.AddSingleton<Func<IApiClient>>(sp => () => sp.GetRequiredService<IApiClient>());
             services.AddSingleton<MainViewModel>();
 
