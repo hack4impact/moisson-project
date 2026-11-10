@@ -1,0 +1,40 @@
+// Catalog items and their price history
+// Paste this file into https://dbdiagram.io to render the diagram.
+// Matches the migration 20261110000447_CreateCatalogItemsAndPrices.
+
+Table catalog_items {
+  id uuid [not null, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_catalog_items']
+  }
+
+  checks {
+    `length(name) > 0` [name: 'ck_catalog_items_name_not_empty']
+  }
+
+  Note: 'Types of food recognized by the app. Category, Business Central code, unit and quality come with #27'
+}
+
+Table prices {
+  id uuid [not null, default: `gen_random_uuid()`]
+  catalog_item_id uuid [not null]
+  unit_price numeric(12,4) [not null, note: 'Price of one unit, in dollars']
+  effective_date date [not null, note: 'First day the price applies']
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_prices']
+    (catalog_item_id, effective_date) [unique, name: 'ix_prices_catalog_item_id_effective_date', note: 'Only one price per item and effective date']
+  }
+
+  checks {
+    `unit_price > 0` [name: 'ck_prices_unit_price_positive']
+  }
+
+  Note: 'Price history: a new price is added as a new row, earlier prices are kept'
+}
+
+Ref fk_prices_catalog_items_catalog_item_id: prices.catalog_item_id > catalog_items.id [delete: restrict]

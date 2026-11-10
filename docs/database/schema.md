@@ -2,13 +2,14 @@
 
 This page explains what the receipt app stores and how the information fits together. It is written for everyone on the project, including people who do not write code.
 
-The database has three parts:
+The database has four parts:
 
 | Part | Tables | What it holds |
 | --- | --- | --- |
 | Accounts | roles, users | Who can use the app and what each person is allowed to do |
 | Donations | donors, food_items | Who gave food, what they gave, when, and in what condition |
 | Tax receipts | receipts, receipt_items | The receipts given to donors and the value of each food item on them |
+| Price grid | catalog_items, prices | The types of food the app knows, and the price of each one over time |
 
 ## Diagram
 
@@ -18,7 +19,7 @@ How to read it:
 
 - Each box is a table, which works like a spreadsheet: one row per record, one column per piece of information.
 - A line between two boxes is a link. For example, the line between donors and receipts means that every receipt points to the donor who receives it.
-- The boxes are grouped by part: Accounts, Donations and Tax receipts.
+- The boxes are grouped by part: Accounts, Donations, Tax receipts and Price grid.
 
 The diagram is generated from [schema.dbml](schema.dbml). To update it, paste the content of that file into [dbdiagram.io](https://dbdiagram.io) and export the image.
 
@@ -62,6 +63,18 @@ The lines of a receipt, one per food item. Each line keeps a copy of everything 
 
 More detail: [Receipts and their prices](receipts.md).
 
+### catalog_items
+
+The types of food the app knows, such as bread or apples. A donation of bread and the next donation of bread are two different food items, but they share the same catalog item, and so the same price. For now a catalog item only has a name. Its category, Business Central code, unit and quality come with issue #27.
+
+More detail: [Price grid](prices.md).
+
+### prices
+
+The price of one unit of each catalog item, and the date from which it applies. Prices are never replaced: when a price changes, a new row is added with a new effective date, and the earlier prices stay. That way, a past donation can always be valued at the price that applied on the day it was received.
+
+More detail: [Price grid](prices.md).
+
 ## How a receipt is valued
 
 The value of each line is:
@@ -86,6 +99,9 @@ The database itself refuses anything that would break these rules, even if there
 - A food item can be on only one receipt, so the same donation cannot get two tax receipts.
 - The same food item cannot appear twice on one receipt.
 
+**One price per day**
+- A catalog item can have many prices over time, but only one price can start on a given day.
+
 **The right donor**
 - A receipt can only list food given by its own donor.
 - A receipt and a food item always belong to a donor that exists.
@@ -94,6 +110,7 @@ The database itself refuses anything that would break these rules, even if there
 - A donor cannot be deleted while they have food items or receipts.
 - A food item cannot be deleted while it is on a receipt.
 - A role cannot be deleted while someone has it.
+- A catalog item cannot be deleted while it has prices.
 
 **Exact amounts**
 - All amounts are stored as exact decimal numbers, so no cent is lost along the way.
@@ -105,7 +122,7 @@ The database itself refuses anything that would break these rules, even if there
 - A quality percentage must be between 0 and 100.
 - A quality grade must be A, B or C.
 - A receipt total cannot be negative.
-- Donor names, food names and units cannot be empty.
+- Donor names, food names, catalog item names and units cannot be empty.
 
 **Accounts**
 - Two employees cannot have the same email or the same Microsoft account.
@@ -113,7 +130,7 @@ The database itself refuses anything that would break these rules, even if there
 
 ## Dates and times
 
-- **Dates without a time** are stored as plain calendar dates, with no time zone involved. This covers the date a donation was received and the date of a receipt.
+- **Dates without a time** are stored as plain calendar dates, with no time zone involved. This covers the date a donation was received, the date of a receipt and the date a price starts to apply.
 - **The date of a receipt** is set automatically to the current date in Montreal. It decides the tax year. A receipt made on December 31 at 8 p.m. is dated December 31, even though it is already January 1 in universal time.
 - **Moments with a time**, such as when an account or a receipt was created, are stored in universal time (UTC) and shown in Montreal time.
 
@@ -123,9 +140,9 @@ These parts of the project are planned in their own issues and will add tables l
 
 | Feature | Issue |
 | --- | --- |
-| Price grid with effective dates, and price lookup by date | #24, #25 |
+| Price lookup by date | #25 |
 | Quality grades with their percentages | #26 |
-| Food catalog with Business Central codes | #27 |
+| Food catalog details: category, Business Central code, unit and quality | #27 |
 | Calculation of a donation's value | #30 |
 | Receipt statuses: prepared, approved at two levels, issued, cancelled and replaced | #31 |
 | Receipt numbering, unique and with no gaps | #32 |
@@ -151,6 +168,7 @@ Each table comes from one of these migrations:
 | roles, users | [20261103000127_CreateUsersAndRoles](../../src/MoissonMontreal.Api/Data/Migrations/20261103000127_CreateUsersAndRoles.cs) | [0001_create_users_and_roles.sql](sql/0001_create_users_and_roles.sql) | [users-roles.md](users-roles.md) |
 | donors, food_items | [20261105163138_CreateDonorsAndFoodItems](../../src/MoissonMontreal.Api/Data/Migrations/20261105163138_CreateDonorsAndFoodItems.cs) | [0002_create_donors_and_food_items.sql](sql/0002_create_donors_and_food_items.sql) | This page |
 | receipts, receipt_items | [20261107041912_CreateReceipts](../../src/MoissonMontreal.Api/Data/Migrations/20261107041912_CreateReceipts.cs) | [0003_create_receipts.sql](sql/0003_create_receipts.sql) | [receipts.md](receipts.md) |
+| catalog_items, prices | [20261110000447_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110000447_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
 
 The SQL scripts must be run in order on an empty database.
 

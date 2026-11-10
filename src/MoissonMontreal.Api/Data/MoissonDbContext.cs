@@ -40,6 +40,16 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
     public DbSet<ReceiptItem> ReceiptItems => Set<ReceiptItem>();
 
     /// <summary>
+    /// Types of food recognized by the app, which the price grid gives a price to.
+    /// </summary>
+    public DbSet<CatalogItem> CatalogItems => Set<CatalogItem>();
+
+    /// <summary>
+    /// Price history of each catalog item, one row per effective date.
+    /// </summary>
+    public DbSet<Price> Prices => Set<Price>();
+
+    /// <summary>
     /// Names every table, column, key and index in snake_case.
     /// </summary>
     /// <param name="optionsBuilder">Builder used to configure the context.</param>
