@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using MoissonMontreal.Api.Data;
+using MoissonMontreal.Api.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +32,8 @@ var accessAsUserPolicy = new AuthorizationPolicyBuilder()
 
 builder.Services.AddAuthorizationBuilder()
     .SetDefaultPolicy(accessAsUserPolicy)
-    .SetFallbackPolicy(accessAsUserPolicy);
+    .SetFallbackPolicy(accessAsUserPolicy)
+    .AddPermissionPolicies();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
