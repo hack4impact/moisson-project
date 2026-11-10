@@ -22,7 +22,6 @@ public class PermissionTests(PermissionsApiFactory factory) : IClassFixture<Perm
         Permissions.ManageAccounts, Permissions.ManagePriceGrid, Permissions.ManageQualityPercentages,
     ];
 
-    // Written from the PRD table, role by role, independently from Permissions.AllowedRoles.
     private static readonly Dictionary<string, string[]> PrdPermissionsByRole = new()
     {
         [RoleCodes.Supply] = [Permissions.ManageDonations, Permissions.ManageDonors, Permissions.ManageReceipts],
