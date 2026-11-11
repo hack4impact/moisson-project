@@ -22,6 +22,35 @@ namespace MoissonMontreal.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.CatalogItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_catalog_items");
+
+                    b.ToTable("catalog_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_catalog_items_name_not_empty", "length(name) > 0");
+                        });
+                });
+
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Donor", b =>
                 {
                     b.Property<Guid>("Id")
@@ -73,6 +102,10 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<Guid?>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -116,6 +149,9 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.HasAlternateKey("Id", "DonorId")
                         .HasName("ak_food_items_id_donor_id");
 
+                    b.HasIndex("CatalogItemId")
+                        .HasDatabaseName("ix_food_items_catalog_item_id");
+
                     b.HasIndex("DonorId")
                         .HasDatabaseName("ix_food_items_donor_id");
 
@@ -128,6 +164,46 @@ namespace MoissonMontreal.Api.Data.Migrations
                             t.HasCheckConstraint("ck_food_items_quantity_positive", "quantity > 0");
 
                             t.HasCheckConstraint("ck_food_items_unit_not_empty", "length(unit) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.Price", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_date");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(12, 4)
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("unit_price");
+
+                    b.HasKey("Id")
+                        .HasName("pk_prices");
+
+                    b.HasIndex("CatalogItemId", "EffectiveDate")
+                        .IsUnique()
+                        .HasDatabaseName("ix_prices_catalog_item_id_effective_date");
+
+                    b.ToTable("prices", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_prices_unit_price_positive", "unit_price > 0");
                         });
                 });
 
@@ -360,6 +436,12 @@ namespace MoissonMontreal.Api.Data.Migrations
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.FoodItem", b =>
                 {
+                    b.HasOne("MoissonMontreal.Core.Entities.CatalogItem", "CatalogItem")
+                        .WithMany()
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_food_items_catalog_items_catalog_item_id");
+
                     b.HasOne("MoissonMontreal.Core.Entities.Donor", "Donor")
                         .WithMany("FoodItems")
                         .HasForeignKey("DonorId")
@@ -367,7 +449,21 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_food_items_donors_donor_id");
 
+                    b.Navigation("CatalogItem");
+
                     b.Navigation("Donor");
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.Price", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.CatalogItem", "CatalogItem")
+                        .WithMany("Prices")
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_prices_catalog_items_catalog_item_id");
+
+                    b.Navigation("CatalogItem");
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Receipt", b =>
@@ -415,6 +511,11 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasConstraintName("fk_users_roles_role_id");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.CatalogItem", b =>
+                {
+                    b.Navigation("Prices");
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Donor", b =>

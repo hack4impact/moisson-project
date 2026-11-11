@@ -5,7 +5,7 @@ using MoissonMontreal.Core.Entities;
 namespace MoissonMontreal.Api.Data.Configurations;
 
 /// <summary>
-/// Column settings for the food_items table, including the link to the donor.
+/// Column settings for the food_items table, including the links to the donor and to the catalog item.
 /// </summary>
 public class FoodItemConfiguration : IEntityTypeConfiguration<FoodItem>
 {
@@ -35,6 +35,11 @@ public class FoodItemConfiguration : IEntityTypeConfiguration<FoodItem>
         builder.HasOne(f => f.Donor)
             .WithMany(d => d.FoodItems)
             .HasForeignKey(f => f.DonorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(f => f.CatalogItem)
+            .WithMany()
+            .HasForeignKey(f => f.CatalogItemId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

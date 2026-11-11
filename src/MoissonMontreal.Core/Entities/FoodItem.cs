@@ -46,6 +46,17 @@ public class FoodItem
     public string Quality { get; set; } = string.Empty;
 
     /// <summary>
+    /// Identifier of the catalog item this donation is, which gives its price.
+    /// Empty until the donation is matched to the catalog.
+    /// </summary>
+    public Guid? CatalogItemId { get; set; }
+
+    /// <summary>
+    /// Catalog item this donation is, or null until the donation is matched to the catalog.
+    /// </summary>
+    public CatalogItem? CatalogItem { get; set; }
+
+    /// <summary>
     /// Date and time the item was added, set by the database.
     /// </summary>
     public DateTimeOffset CreatedAt { get; set; }

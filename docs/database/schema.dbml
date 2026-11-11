@@ -1,11 +1,11 @@
 // Full database schema of the Moisson Montreal receipt app
 // Paste this file into https://dbdiagram.io to render the diagram.
-// Matches the migrations 20261103000127_CreateUsersAndRoles, 20261105163138_CreateDonorsAndFoodItems
-// and 20261107041912_CreateReceipts.
+// Matches the migrations 20261103000127_CreateUsersAndRoles, 20261105163138_CreateDonorsAndFoodItems,
+// 20261107041912_CreateReceipts and 20261110175320_CreateCatalogItemsAndPrices.
 
 Project moisson_montreal {
   database_type: 'PostgreSQL'
-  Note: 'Accounts of the employees, donors and their donated food, and the tax receipts with the prices used to value them'
+  Note: 'Accounts of the employees, donors and their donated food, the tax receipts with the prices used to value them, and the price grid'
 }
 
 Table roles {
@@ -73,12 +73,14 @@ Table food_items {
   unit varchar(20) [not null]
   donation_date date [not null, note: 'Date the food was received']
   quality varchar(1) [not null, note: 'A, B or C']
+  catalog_item_id uuid [null, note: 'Catalog item of the donation, which gives its price. Empty until it is matched to the catalog']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
 
   indexes {
     id [pk, name: 'pk_food_items']
     (id, donor_id) [unique, name: 'ak_food_items_id_donor_id', note: 'Lets receipt_items check the donor']
     donor_id [name: 'ix_food_items_donor_id']
+    catalog_item_id [name: 'ix_food_items_catalog_item_id']
   }
 
   checks {
@@ -137,15 +139,54 @@ Table receipt_items {
   Note: 'Food items on a receipt. Line value = round(quantity x unit_price x quality_percent / 100, 2), half away from zero'
 }
 
+Table catalog_items {
+  id uuid [not null, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_catalog_items']
+  }
+
+  checks {
+    `length(name) > 0` [name: 'ck_catalog_items_name_not_empty']
+  }
+
+  Note: 'Types of food recognized by the app. Category, Business Central code, unit and quality come with #27'
+}
+
+Table prices {
+  id uuid [not null, default: `gen_random_uuid()`]
+  catalog_item_id uuid [not null]
+  unit_price numeric(12,4) [not null, note: 'Price of one unit, in dollars']
+  effective_date date [not null, note: 'First day the price applies']
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_prices']
+    (catalog_item_id, effective_date) [unique, name: 'ix_prices_catalog_item_id_effective_date', note: 'Only one price per item and effective date']
+  }
+
+  checks {
+    `unit_price > 0` [name: 'ck_prices_unit_price_positive']
+  }
+
+  Note: 'Price history: a new price is added as a new row, earlier prices are kept'
+}
+
 Ref fk_users_roles_role_id: users.role_id > roles.id [delete: restrict]
 
 Ref fk_food_items_donors_donor_id: food_items.donor_id > donors.id [delete: restrict]
+
+Ref fk_food_items_catalog_items_catalog_item_id: food_items.catalog_item_id > catalog_items.id [delete: restrict]
 
 Ref fk_receipts_donors_donor_id: receipts.donor_id > donors.id [delete: restrict]
 
 Ref fk_receipt_items_receipts_receipt_id_donor_id: receipt_items.(receipt_id, donor_id) > receipts.(id, donor_id) [delete: cascade]
 
 Ref fk_receipt_items_food_items_food_item_id_donor_id: receipt_items.(food_item_id, donor_id) > food_items.(id, donor_id) [delete: restrict]
+
+Ref fk_prices_catalog_items_catalog_item_id: prices.catalog_item_id > catalog_items.id [delete: restrict]
 
 TableGroup accounts {
   roles
@@ -160,6 +201,11 @@ TableGroup donations {
 TableGroup tax_receipts {
   receipts
   receipt_items
+}
+
+TableGroup price_grid {
+  catalog_items
+  prices
 }
 
 Records roles(id, code, name) {

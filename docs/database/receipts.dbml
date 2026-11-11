@@ -1,8 +1,8 @@
 // Receipts and their prices
 // Paste this file into https://dbdiagram.io to render the diagram.
 // Matches the migration 20261107041912_CreateReceipts.
-// donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems
-// and are shown here because receipts link to them.
+// donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems,
+// and catalog_items from 20261110175320_CreateCatalogItemsAndPrices. They are shown here because receipts link to them.
 
 Table donors {
   id uuid [not null, default: `gen_random_uuid()`]
@@ -31,12 +31,14 @@ Table food_items {
   unit varchar(20) [not null]
   donation_date date [not null]
   quality varchar(1) [not null, note: 'A, B or C']
+  catalog_item_id uuid [null, note: 'Catalog item of the donation, which gives its price. Empty until it is matched to the catalog']
   created_at timestamptz [not null, default: `now()`]
 
   indexes {
     id [pk, name: 'pk_food_items']
     (id, donor_id) [unique, name: 'ak_food_items_id_donor_id', note: 'Added by CreateReceipts for the receipt_items link']
     donor_id [name: 'ix_food_items_donor_id']
+    catalog_item_id [name: 'ix_food_items_catalog_item_id']
   }
 
   checks {
@@ -47,6 +49,22 @@ Table food_items {
   }
 
   Note: 'Food donated by a donor, with its date and quality'
+}
+
+Table catalog_items {
+  id uuid [not null, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_catalog_items']
+  }
+
+  checks {
+    `length(name) > 0` [name: 'ck_catalog_items_name_not_empty']
+  }
+
+  Note: 'Types of food recognized by the app. Category, Business Central code, unit and quality come with #27'
 }
 
 Table receipts {
@@ -96,6 +114,8 @@ Table receipt_items {
 }
 
 Ref fk_food_items_donors_donor_id: food_items.donor_id > donors.id [delete: restrict]
+
+Ref fk_food_items_catalog_items_catalog_item_id: food_items.catalog_item_id > catalog_items.id [delete: restrict]
 
 Ref fk_receipts_donors_donor_id: receipts.donor_id > donors.id [delete: restrict]
 

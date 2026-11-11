@@ -1,0 +1,93 @@
+// Catalog items and their price history
+// Paste this file into https://dbdiagram.io to render the diagram.
+// Matches the migration 20261110175320_CreateCatalogItemsAndPrices.
+// donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems
+// and are shown here because each donation links to its catalog item.
+
+Table catalog_items {
+  id uuid [not null, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_catalog_items']
+  }
+
+  checks {
+    `length(name) > 0` [name: 'ck_catalog_items_name_not_empty']
+  }
+
+  Note: 'Types of food recognized by the app. Category, Business Central code, unit and quality come with #27'
+}
+
+Table prices {
+  id uuid [not null, default: `gen_random_uuid()`]
+  catalog_item_id uuid [not null]
+  unit_price numeric(12,4) [not null, note: 'Price of one unit, in dollars']
+  effective_date date [not null, note: 'First day the price applies']
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_prices']
+    (catalog_item_id, effective_date) [unique, name: 'ix_prices_catalog_item_id_effective_date', note: 'Only one price per item and effective date']
+  }
+
+  checks {
+    `unit_price > 0` [name: 'ck_prices_unit_price_positive']
+  }
+
+  Note: 'Price history: a new price is added as a new row, earlier prices are kept'
+}
+
+Table donors {
+  id uuid [not null, default: `gen_random_uuid()`]
+  name varchar(255) [not null]
+  address text [null]
+  postal_code varchar(20) [null]
+  contact_person varchar(255) [null]
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_donors']
+  }
+
+  checks {
+    `length(name) > 0` [name: 'ck_donors_name_not_empty']
+  }
+
+  Note: 'Organizations or people who give food'
+}
+
+Table food_items {
+  id uuid [not null, default: `gen_random_uuid()`]
+  donor_id uuid [not null]
+  name varchar(255) [not null]
+  quantity numeric(12,2) [not null]
+  unit varchar(20) [not null]
+  donation_date date [not null, note: 'Date the food was received']
+  quality varchar(1) [not null, note: 'A, B or C']
+  catalog_item_id uuid [null, note: 'Catalog item of the donation, which gives its price. Empty until it is matched to the catalog']
+  created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_food_items']
+    (id, donor_id) [unique, name: 'ak_food_items_id_donor_id', note: 'Lets receipt_items check the donor']
+    donor_id [name: 'ix_food_items_donor_id']
+    catalog_item_id [name: 'ix_food_items_catalog_item_id']
+  }
+
+  checks {
+    `length(name) > 0` [name: 'ck_food_items_name_not_empty']
+    `quality IN ('A', 'B', 'C')` [name: 'ck_food_items_quality']
+    `quantity > 0` [name: 'ck_food_items_quantity_positive']
+    `length(unit) > 0` [name: 'ck_food_items_unit_not_empty']
+  }
+
+  Note: 'Food donated by a donor, with its date and quality'
+}
+
+Ref fk_food_items_donors_donor_id: food_items.donor_id > donors.id [delete: restrict]
+
+Ref fk_food_items_catalog_items_catalog_item_id: food_items.catalog_item_id > catalog_items.id [delete: restrict]
+
+Ref fk_prices_catalog_items_catalog_item_id: prices.catalog_item_id > catalog_items.id [delete: restrict]
