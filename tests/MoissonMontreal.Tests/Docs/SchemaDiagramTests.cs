@@ -14,7 +14,7 @@ public class SchemaDiagramTests(PostgresFixture postgres) : IClassFixture<Postgr
 
     public static TheoryData<string, string, string> ExpressionDrifts => new()
     {
-        { "`quality IN ('A', 'B', 'C')`", "`quality IN ('A', 'B')`", "Check ck_food_items_quality: expression" },
+        { "`percentage BETWEEN min_percentage AND max_percentage`", "`percentage BETWEEN 0 AND max_percentage`", "Check ck_quality_classes_percentage_in_range: expression" },
         { "`quantity > 0` [name: 'ck_food_items_quantity_positive']", "`quantity >= 0` [name: 'ck_food_items_quantity_positive']", "Check ck_food_items_quantity_positive: expression" },
         { "`quality_percent BETWEEN 0 AND 100`", "`quality_percent BETWEEN 0 AND 75`", "Check ck_receipt_items_quality_percent_range: expression" },
         { "`quality_percent BETWEEN 0 AND 100`", "`quality_percent BETWEEN 0 AND 100 OR unknown_column > 0`", "Check ck_receipt_items_quality_percent_range: expression is invalid" },

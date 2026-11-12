@@ -3,6 +3,7 @@
 // Matches the migration 20261110175320_CreateCatalogItemsAndPrices.
 // donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems
 // and are shown here because each donation links to its catalog item.
+// quality_classes comes from 20261112002641_CreateQualityClasses and is shown because each donation links to its quality class.
 
 Table catalog_items {
   id uuid [not null, default: `gen_random_uuid()`]
@@ -65,7 +66,7 @@ Table food_items {
   quantity numeric(12,2) [not null]
   unit varchar(20) [not null]
   donation_date date [not null, note: 'Date the food was received']
-  quality varchar(1) [not null, note: 'A, B or C']
+  quality varchar(1) [not null, note: 'Code of the quality class']
   catalog_item_id uuid [null, note: 'Catalog item of the donation, which gives its price. Empty until it is matched to the catalog']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
 
@@ -74,11 +75,11 @@ Table food_items {
     (id, donor_id) [unique, name: 'ak_food_items_id_donor_id', note: 'Lets receipt_items check the donor']
     donor_id [name: 'ix_food_items_donor_id']
     catalog_item_id [name: 'ix_food_items_catalog_item_id']
+    quality [name: 'ix_food_items_quality']
   }
 
   checks {
     `length(name) > 0` [name: 'ck_food_items_name_not_empty']
-    `quality IN ('A', 'B', 'C')` [name: 'ck_food_items_quality']
     `quantity > 0` [name: 'ck_food_items_quantity_positive']
     `length(unit) > 0` [name: 'ck_food_items_unit_not_empty']
   }
@@ -86,8 +87,32 @@ Table food_items {
   Note: 'Food donated by a donor, with its date and quality'
 }
 
+Table quality_classes {
+  code varchar(1) [not null, note: 'One-letter code, such as A, B or C']
+  name varchar(100) [not null]
+  percentage numeric(5,2) [not null, note: 'Percentage of the price applied by default']
+  min_percentage numeric(5,2) [not null, note: 'Lowest percentage allowed']
+  max_percentage numeric(5,2) [not null, note: 'Highest percentage allowed']
+
+  indexes {
+    code [pk, name: 'pk_quality_classes']
+    name [unique, name: 'ix_quality_classes_name']
+  }
+
+  checks {
+    `length(code) > 0` [name: 'ck_quality_classes_code_not_empty']
+    `length(name) > 0` [name: 'ck_quality_classes_name_not_empty']
+    `min_percentage >= 0 AND min_percentage <= max_percentage AND max_percentage <= 100` [name: 'ck_quality_classes_range_valid']
+    `percentage BETWEEN min_percentage AND max_percentage` [name: 'ck_quality_classes_percentage_in_range']
+  }
+
+  Note: 'Quality classes of donated food. Initial values follow the PRD and are to be confirmed with Nafissa'
+}
+
 Ref fk_food_items_donors_donor_id: food_items.donor_id > donors.id [delete: restrict]
 
 Ref fk_food_items_catalog_items_catalog_item_id: food_items.catalog_item_id > catalog_items.id [delete: restrict]
+
+Ref fk_food_items_quality_classes_quality: food_items.quality > quality_classes.code [delete: restrict]
 
 Ref fk_prices_catalog_items_catalog_item_id: prices.catalog_item_id > catalog_items.id [delete: restrict]

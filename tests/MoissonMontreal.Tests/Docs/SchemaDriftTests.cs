@@ -18,7 +18,7 @@ public class SchemaDriftTests
         { "renamed index", "name: 'ix_receipt_items_food_item_id',", "name: 'ix_receipt_items_food_item',", "Index ix_receipt_items_food_item_id is missing from the diagram" },
         { "duplicates allowed", "food_item_id [unique, name: 'ix_receipt_items_food_item_id'", "food_item_id [name: 'ix_receipt_items_food_item_id'", "Index ix_receipt_items_food_item_id: unique" },
         { "index columns in another order", "(receipt_id, food_item_id) [pk", "(food_item_id, receipt_id) [pk", "Index pk_receipt_items: columns" },
-        { "missing check", "    `quality IN ('A', 'B', 'C')` [name: 'ck_food_items_quality']\n", "", "Check ck_food_items_quality is missing from the diagram" },
+        { "missing check", "    `percentage BETWEEN min_percentage AND max_percentage` [name: 'ck_quality_classes_percentage_in_range']\n", "", "Check ck_quality_classes_percentage_in_range is missing from the diagram" },
         { "wrong check expression", "`quantity > 0` [name: 'ck_food_items_quantity_positive']", "`quantity >= 0` [name: 'ck_food_items_quantity_positive']", "Check ck_food_items_quantity_positive: expression" },
         { "wrong delete rule", "receipts.(id, donor_id) [delete: cascade]", "receipts.(id, donor_id) [delete: restrict]", "Ref fk_receipt_items_receipts_receipt_id_donor_id: delete rule" },
         { "donor left out of a link", "receipt_items.(food_item_id, donor_id) > food_items.(id, donor_id)", "receipt_items.food_item_id > food_items.id", "Ref fk_receipt_items_food_items_food_item_id_donor_id: columns" },

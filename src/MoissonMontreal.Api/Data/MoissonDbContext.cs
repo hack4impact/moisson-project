@@ -50,6 +50,11 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
     public DbSet<Price> Prices => Set<Price>();
 
     /// <summary>
+    /// Quality classes of donated food, with the percentage of the price kept for each one.
+    /// </summary>
+    public DbSet<QualityClass> QualityClasses => Set<QualityClass>();
+
+    /// <summary>
     /// Names every table, column, key and index in snake_case.
     /// </summary>
     /// <param name="optionsBuilder">Builder used to configure the context.</param>

@@ -41,9 +41,14 @@ public class FoodItem
     public DateOnly DonationDate { get; set; }
 
     /// <summary>
-    /// Quality grade: A, B, or C.
+    /// Code of the quality class of this item, such as A, B or C. Must match an existing quality class.
     /// </summary>
     public string Quality { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Quality class of this item, which gives the percentage of the price kept.
+    /// </summary>
+    public QualityClass QualityClass { get; set; } = null!;
 
     /// <summary>
     /// Identifier of the catalog item this donation is, which gives its price.
