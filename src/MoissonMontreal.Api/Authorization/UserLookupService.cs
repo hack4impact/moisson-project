@@ -26,7 +26,7 @@ public class UserLookupService
 
     /// <summary>
     /// Finds the active account of the signed-in employee, with its role.
-    /// On the employee's first sign-in, the account is found by email and linked to their Microsoft account.
+    /// If the account is not linked yet, it is found by email and linked to the employee's Microsoft account.
     /// </summary>
     /// <param name="principal">Signed-in employee, built from the validated access token.</param>
     /// <param name="cancellationToken">Cancelled when the request is aborted.</param>
@@ -41,19 +41,19 @@ public class UserLookupService
         var user = await _dbContext.Users
             .Include(u => u.Role)
             .SingleOrDefaultAsync(u => u.EntraObjectId == objectId, cancellationToken)
-            ?? await LinkOnFirstSignInAsync(principal, objectId, cancellationToken);
+            ?? await LinkByEmailAsync(principal, objectId, cancellationToken);
 
         return user is { IsActive: true } ? user : null;
     }
 
     /// <summary>
-    /// Finds an account that was never signed in to, by email, and saves the employee's Microsoft account id on it.
+    /// Finds an account that is not linked yet, by email, and saves the employee's Microsoft account id on it.
     /// </summary>
     /// <param name="principal">Signed-in employee, built from the validated access token.</param>
     /// <param name="objectId">Microsoft account id of the employee (<c>oid</c> claim).</param>
     /// <param name="cancellationToken">Cancelled when the request is aborted.</param>
     /// <returns>The linked account with its role, or <c>null</c> if no account was added for this email.</returns>
-    private async Task<User?> LinkOnFirstSignInAsync(ClaimsPrincipal principal, Guid objectId, CancellationToken cancellationToken)
+    private async Task<User?> LinkByEmailAsync(ClaimsPrincipal principal, Guid objectId, CancellationToken cancellationToken)
     {
         var email = principal.FindFirstValue("email") ?? principal.FindFirstValue("preferred_username");
         if (string.IsNullOrWhiteSpace(email))

@@ -140,7 +140,7 @@ public class PermissionTests(PermissionsApiFactory factory) : IClassFixture<Perm
     }
 
     [Fact]
-    public async Task ProtectedEndpoint_LinksTheAccount_OnFirstSignIn()
+    public async Task ProtectedEndpoint_LinksTheAccount_OnFirstPermissionCheck()
     {
         await factory.ReplaceUsersWithAsync(RoleCodes.SupplyDirector, isLinked: false);
 
