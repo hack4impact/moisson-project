@@ -2,7 +2,7 @@
 // Paste this file into https://dbdiagram.io to render the diagram.
 // Matches the migration 20261107041912_CreateReceipts.
 // donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems,
-// catalog_items from 20261110175320_CreateCatalogItemsAndPrices and quality_classes from 20261112002641_CreateQualityClasses.
+// catalog_items from 20261110175320_CreateCatalogItemsAndPrices and quality_classes from 20261112060008_CreateQualityClasses.
 // They are shown here because receipts link to them.
 
 Table donors {
@@ -53,7 +53,7 @@ Table food_items {
 }
 
 Table quality_classes {
-  code varchar(1) [not null, note: 'One-letter code, such as A, B or C']
+  code varchar(1) [not null, note: 'One capital letter from A to Z, such as A, B or C']
   name varchar(100) [not null]
   percentage numeric(5,2) [not null, note: 'Percentage of the price applied by default']
   min_percentage numeric(5,2) [not null, note: 'Lowest percentage allowed']
@@ -65,7 +65,7 @@ Table quality_classes {
   }
 
   checks {
-    `length(code) > 0` [name: 'ck_quality_classes_code_not_empty']
+    `code ~ '^[A-Z]$'` [name: 'ck_quality_classes_code_format']
     `length(name) > 0` [name: 'ck_quality_classes_name_not_empty']
     `min_percentage >= 0 AND min_percentage <= max_percentage AND max_percentage <= 100` [name: 'ck_quality_classes_range_valid']
     `percentage BETWEEN min_percentage AND max_percentage` [name: 'ck_quality_classes_percentage_in_range']

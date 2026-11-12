@@ -18,7 +18,7 @@ One row per quality class.
 
 | Column | Meaning |
 | --- | --- |
-| code | One-letter code of the class, such as A, B or C. It identifies the class and never changes. |
+| code | One capital letter from A to Z, such as A, B or C. It identifies the class and never changes. |
 | name | Name shown in the app. Two classes cannot have the same name. |
 | percentage | Share of the price applied by default, from 0 to 100 |
 | min_percentage | Lowest share allowed for this class |
@@ -45,7 +45,7 @@ Points to confirm with Nafissa:
 3. The default for class B. It is set to 50 %, the low end of the range, so a receipt is never overvalued by default.
 4. How the percentage of a class B item is chosen. The PRD lists three options: per type of food, at the discretion of the supply team, or a default that can be changed.
 
-Once confirmed, any value can be changed in the table without a new migration, as long as the rules below are kept.
+Once confirmed, any value can be changed in the table without a new migration, as long as the rules below are kept. The three classes are inserted by the migration only. They are not part of the Entity Framework model (no HasData), so a later migration never overwrites the values the admin has changed. To change the initial values in code, write a new migration that updates the rows on purpose.
 
 ## How the percentage is used
 
@@ -76,7 +76,8 @@ All three percentage columns are exact decimal numbers with 2 decimal places (nu
 3. The default percentage must be between the lowest and the highest percentage of its class.
 4. The lowest percentage cannot be below 0, the highest cannot be above 100, and the lowest cannot be above the highest.
 5. Two classes cannot have the same code or the same name.
-6. A code is exactly one letter long, and neither the code nor the name can be empty.
+6. A code is exactly one capital letter from A to Z. A lowercase letter, a digit, a space, a symbol or an accented letter is refused, so B and b can never be two classes.
+7. A name cannot be empty.
 
 ## Rules left to the app
 
@@ -87,11 +88,20 @@ All three percentage columns are exact decimal numbers with 2 decimal places (nu
 
 | Item | Location |
 | --- | --- |
-| Entity Framework migration | [20261112002641_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112002641_CreateQualityClasses.cs) |
+| Entity Framework migration | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) |
 | Equivalent SQL script | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) |
 | Table settings | [QualityClassConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/QualityClassConfiguration.cs) and [FoodItemConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/FoodItemConfiguration.cs) |
 
 The migration creates the table and its three classes first, then links food_items to it. A database that already holds food items graded A, B or C is upgraded without losing anything. Rolling the migration back removes the table and puts back the rule that only allows A, B or C.
+
+The rollback first checks that nothing would be lost, and stops with a clear error, before changing anything, when:
+
+- a food item uses a class other than A, B or C, since the old rule would refuse it;
+- a class was added, or a name or percentage was changed, since removing the table would delete those values.
+
+To roll back in that case, move those food items to A, B or C and put back the three initial classes first.
+
+The initial classes and this check are written by hand in the migration. Keep them if the migration is ever regenerated.
 
 The SQL script is generated from the migration with `dotnet ef migrations script CreateCatalogItemsAndPrices CreateQualityClasses --project src/MoissonMontreal.Api --output docs/database/sql/0005_create_quality_classes.sql`. It must be run after the scripts 0001 to 0004. It records itself in the migration history, so Entity Framework will not apply it a second time.
 

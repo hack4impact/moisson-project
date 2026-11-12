@@ -132,7 +132,7 @@ The database itself refuses anything that would break these rules, even if there
 - A quality percentage must be between 0 and 100.
 - A food item must have a quality class that exists.
 - A quality class keeps a default percentage within its own range, and the range stays between 0 % and 100 %.
-- Two quality classes cannot have the same code or the same name.
+- Two quality classes cannot have the same code or the same name, and a code is one capital letter from A to Z.
 - A receipt total cannot be negative.
 - Donor names, food names, catalog item names and units cannot be empty.
 
@@ -180,7 +180,7 @@ Each table comes from one of these migrations:
 | donors, food_items | [20261105163138_CreateDonorsAndFoodItems](../../src/MoissonMontreal.Api/Data/Migrations/20261105163138_CreateDonorsAndFoodItems.cs) | [0002_create_donors_and_food_items.sql](sql/0002_create_donors_and_food_items.sql) | This page |
 | receipts, receipt_items | [20261107041912_CreateReceipts](../../src/MoissonMontreal.Api/Data/Migrations/20261107041912_CreateReceipts.cs) | [0003_create_receipts.sql](sql/0003_create_receipts.sql) | [receipts.md](receipts.md) |
 | catalog_items, prices | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
-| quality_classes | [20261112002641_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112002641_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
+| quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
 
 The SQL scripts must be run in order on an empty database.
 

@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using MoissonMontreal.Api.Data;
 using MoissonMontreal.Core.Entities;
@@ -200,7 +201,7 @@ public class QualityClassesMigrationTests(PostgresFixture postgres) : IClassFixt
     }
 
     [Theory]
-    [InlineData("", "Empty code", "ck_quality_classes_code_not_empty")]
+    [InlineData("", "Empty code", "ck_quality_classes_code_format")]
     [InlineData("P", "", "ck_quality_classes_name_not_empty")]
     public async Task SaveChanges_Throws_WhenCodeOrNameIsEmpty(string code, string name, string constraint)
     {
@@ -208,6 +209,41 @@ public class QualityClassesMigrationTests(PostgresFixture postgres) : IClassFixt
         context.QualityClasses.Add(new QualityClass { Code = code, Name = name, Percentage = 50m, MinPercentage = 0m, MaxPercentage = 100m });
 
         await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, constraint);
+    }
+
+    [Theory]
+    [InlineData("b")]
+    [InlineData("z")]
+    [InlineData("1")]
+    [InlineData(" ")]
+    [InlineData("-")]
+    [InlineData("É")]
+    public async Task SaveChanges_Throws_WhenCodeIsNotOneCapitalLetter(string code)
+    {
+        await using var context = await MigratedContextAsync();
+        context.QualityClasses.Add(new QualityClass { Code = code, Name = $"Code {code}", Percentage = 50m, MinPercentage = 0m, MaxPercentage = 100m });
+
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_quality_classes_code_format");
+    }
+
+    [Fact]
+    public async Task SaveChanges_AcceptsZ_TheLastCapitalLetter()
+    {
+        await using var context = CreateContext("quality_code_z");
+        await context.Database.MigrateAsync();
+        context.QualityClasses.Add(new QualityClass { Code = "Z", Name = "Last letter", Percentage = 50m, MinPercentage = 0m, MaxPercentage = 100m });
+
+        await context.SaveChangesAsync();
+    }
+
+    [Fact]
+    public void InitialClasses_AreInsertedByTheMigration_NotManagedByTheModel()
+    {
+        using var context = CreateContext();
+
+        var model = context.GetService<IDesignTimeModel>().Model;
+
+        Assert.Empty(model.FindEntityType(typeof(QualityClass))!.GetSeedData());
     }
 
     [Fact]
@@ -253,6 +289,71 @@ public class QualityClassesMigrationTests(PostgresFixture postgres) : IClassFixt
             VALUES ('00000000-0000-0000-0000-0000000000d2', 'Pommes', 4, 'caisse', '2026-11-03', 'D');
             """));
         Assert.Equal("ck_food_items_quality", exception.ConstraintName);
+    }
+
+    [Fact]
+    public async Task RollingBack_KeepsFoodItemsGradedAToC()
+    {
+        await using (var saveContext = CreateContext("quality_rollback_abc"))
+        {
+            await saveContext.Database.MigrateAsync();
+            saveContext.FoodItems.AddRange(NewFoodItem("A"), NewFoodItem("B"), NewFoodItem("C"));
+            await saveContext.SaveChangesAsync();
+        }
+
+        await using var context = CreateContext("quality_rollback_abc");
+        await context.GetService<IMigrator>().MigrateAsync(MigrationBeforeQualityClasses);
+
+        Assert.Equal(["A", "B", "C"], await context.Database.SqlQueryRaw<string>("SELECT quality AS \"Value\" FROM food_items ORDER BY quality").ToListAsync());
+        Assert.Equal(MigrationBeforeQualityClasses, (await context.Database.GetAppliedMigrationsAsync()).Last());
+    }
+
+    [Fact]
+    public async Task RollingBack_Stops_WhenAFoodItemUsesANewClass()
+    {
+        const string database = "quality_rollback_new_class";
+        await using (var saveContext = CreateContext(database))
+        {
+            await saveContext.Database.MigrateAsync();
+            saveContext.QualityClasses.Add(new QualityClass { Code = "S", Name = "Sorted", Percentage = 80m, MinPercentage = 80m, MaxPercentage = 90m });
+            saveContext.FoodItems.Add(NewFoodItem("S"));
+            await saveContext.SaveChangesAsync();
+        }
+
+        await AssertRollbackStopsAsync(database, "some food items use a quality class other than A, B or C");
+
+        await using var context = CreateContext(database);
+        Assert.Equal("S", (await context.FoodItems.Include(f => f.QualityClass).SingleAsync()).QualityClass.Code);
+    }
+
+    [Theory]
+    [InlineData("quality_rollback_added", "INSERT INTO quality_classes VALUES ('S', 'Sorted', 80, 80, 90)")]
+    [InlineData("quality_rollback_percentage", "UPDATE quality_classes SET percentage = 60 WHERE code = 'B'")]
+    [InlineData("quality_rollback_range", "UPDATE quality_classes SET max_percentage = 70 WHERE code = 'B'")]
+    [InlineData("quality_rollback_name", "UPDATE quality_classes SET name = 'Imparfait' WHERE code = 'B'")]
+    public async Task RollingBack_Stops_WhenAQualityClassWasAddedOrChanged(string database, string change)
+    {
+        await using (var saveContext = CreateContext(database))
+        {
+            await saveContext.Database.MigrateAsync();
+            await saveContext.Database.ExecuteSqlRawAsync(change);
+        }
+
+        await AssertRollbackStopsAsync(database, "quality classes were added or changed since the migration");
+    }
+
+    private async Task AssertRollbackStopsAsync(string database, string expectedMessage)
+    {
+        await using (var rollbackContext = CreateContext(database))
+        {
+            var exception = await Assert.ThrowsAsync<PostgresException>(() => rollbackContext.GetService<IMigrator>().MigrateAsync(MigrationBeforeQualityClasses));
+            Assert.Equal(PostgresErrorCodes.RaiseException, exception.SqlState);
+            Assert.Contains(expectedMessage, exception.MessageText);
+        }
+
+        await using var context = CreateContext(database);
+        Assert.EndsWith("_CreateQualityClasses", (await context.Database.GetAppliedMigrationsAsync()).Last());
+        Assert.True(await context.QualityClasses.AnyAsync());
     }
 
     private static FoodItem NewFoodItem(string quality) => new()

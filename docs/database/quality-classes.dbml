@@ -1,12 +1,12 @@
 // Quality classes and the donated food linked to them
 // Paste this file into https://dbdiagram.io to render the diagram.
-// Matches the migration 20261112002641_CreateQualityClasses.
+// Matches the migration 20261112060008_CreateQualityClasses.
 // donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems
 // and are shown here because food items link to their quality class.
 // catalog_items comes from 20261110175320_CreateCatalogItemsAndPrices and is shown because food items link to it.
 
 Table quality_classes {
-  code varchar(1) [not null, note: 'One-letter code, such as A, B or C']
+  code varchar(1) [not null, note: 'One capital letter from A to Z, such as A, B or C']
   name varchar(100) [not null]
   percentage numeric(5,2) [not null, note: 'Percentage of the price applied by default']
   min_percentage numeric(5,2) [not null, note: 'Lowest percentage allowed']
@@ -18,7 +18,7 @@ Table quality_classes {
   }
 
   checks {
-    `length(code) > 0` [name: 'ck_quality_classes_code_not_empty']
+    `code ~ '^[A-Z]$'` [name: 'ck_quality_classes_code_format']
     `length(name) > 0` [name: 'ck_quality_classes_name_not_empty']
     `min_percentage >= 0 AND min_percentage <= max_percentage AND max_percentage <= 100` [name: 'ck_quality_classes_range_valid']
     `percentage BETWEEN min_percentage AND max_percentage` [name: 'ck_quality_classes_percentage_in_range']

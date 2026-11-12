@@ -245,39 +245,13 @@ namespace MoissonMontreal.Api.Data.Migrations
 
                     b.ToTable("quality_classes", null, t =>
                         {
-                            t.HasCheckConstraint("ck_quality_classes_code_not_empty", "length(code) > 0");
+                            t.HasCheckConstraint("ck_quality_classes_code_format", "code ~ '^[A-Z]$'");
 
                             t.HasCheckConstraint("ck_quality_classes_name_not_empty", "length(name) > 0");
 
                             t.HasCheckConstraint("ck_quality_classes_percentage_in_range", "percentage BETWEEN min_percentage AND max_percentage");
 
                             t.HasCheckConstraint("ck_quality_classes_range_valid", "min_percentage >= 0 AND min_percentage <= max_percentage AND max_percentage <= 100");
-                        });
-
-                    b.HasData(
-                        new
-                        {
-                            Code = "A",
-                            MaxPercentage = 100m,
-                            MinPercentage = 100m,
-                            Name = "Grocery quality",
-                            Percentage = 100m
-                        },
-                        new
-                        {
-                            Code = "B",
-                            MaxPercentage = 75m,
-                            MinPercentage = 50m,
-                            Name = "Imperfect",
-                            Percentage = 50m
-                        },
-                        new
-                        {
-                            Code = "C",
-                            MaxPercentage = 0m,
-                            MinPercentage = 0m,
-                            Name = "Near expiry",
-                            Percentage = 0m
                         });
                 });
 

@@ -9,7 +9,12 @@ namespace MoissonMontreal.Api.Data.Migrations
     /// <inheritdoc />
     public partial class CreateQualityClasses : Migration
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// Creates quality_classes and links food_items to it.
+        /// The InsertData of the three initial classes is written by hand, not generated from HasData,
+        /// so later migrations never overwrite the values the admin changes. Keep it if this migration is regenerated.
+        /// </summary>
+        /// <param name="migrationBuilder">Builder used to describe the operations.</param>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropCheckConstraint(
@@ -29,7 +34,7 @@ namespace MoissonMontreal.Api.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_quality_classes", x => x.code);
-                    table.CheckConstraint("ck_quality_classes_code_not_empty", "length(code) > 0");
+                    table.CheckConstraint("ck_quality_classes_code_format", "code ~ '^[A-Z]$'");
                     table.CheckConstraint("ck_quality_classes_name_not_empty", "length(name) > 0");
                     table.CheckConstraint("ck_quality_classes_percentage_in_range", "percentage BETWEEN min_percentage AND max_percentage");
                     table.CheckConstraint("ck_quality_classes_range_valid", "min_percentage >= 0 AND min_percentage <= max_percentage AND max_percentage <= 100");
@@ -37,12 +42,12 @@ namespace MoissonMontreal.Api.Data.Migrations
 
             migrationBuilder.InsertData(
                 table: "quality_classes",
-                columns: new[] { "code", "max_percentage", "min_percentage", "name", "percentage" },
+                columns: new[] { "code", "name", "percentage", "min_percentage", "max_percentage" },
                 values: new object[,]
                 {
-                    { "A", 100m, 100m, "Grocery quality", 100m },
-                    { "B", 75m, 50m, "Imperfect", 50m },
-                    { "C", 0m, 0m, "Near expiry", 0m }
+                    { "A", "Grocery quality", 100m, 100m, 100m },
+                    { "B", "Imperfect", 50m, 50m, 75m },
+                    { "C", "Near expiry", 0m, 0m, 0m }
                 });
 
             migrationBuilder.CreateIndex(
@@ -65,9 +70,33 @@ namespace MoissonMontreal.Api.Data.Migrations
                 onDelete: ReferentialAction.Restrict);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Removes quality_classes and puts back the A, B or C check on food_items.
+        /// The first step is written by hand: it stops the rollback with a clear error, before anything is changed,
+        /// if a food item uses a class other than A, B or C, or if a class was added or changed,
+        /// because dropping the table would lose those values. Keep it if this migration is regenerated.
+        /// </summary>
+        /// <param name="migrationBuilder">Builder used to describe the operations.</param>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("""
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM food_items WHERE quality NOT IN ('A', 'B', 'C')) THEN
+                        RAISE EXCEPTION 'Cannot roll back CreateQualityClasses: some food items use a quality class other than A, B or C. Move them to A, B or C first.';
+                    END IF;
+
+                    IF EXISTS (
+                        SELECT 1 FROM quality_classes
+                        WHERE (code, name, percentage, min_percentage, max_percentage) NOT IN (
+                            ('A', 'Grocery quality', 100, 100, 100),
+                            ('B', 'Imperfect', 50, 50, 75),
+                            ('C', 'Near expiry', 0, 0, 0))) THEN
+                        RAISE EXCEPTION 'Cannot roll back CreateQualityClasses: quality classes were added or changed since the migration, and rolling back would delete them. Put back the three initial classes first.';
+                    END IF;
+                END $$;
+                """);
+
             migrationBuilder.DropForeignKey(
                 name: "fk_food_items_quality_classes_quality",
                 table: "food_items");
