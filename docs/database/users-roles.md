@@ -35,7 +35,7 @@ One row per employee who has been given access to the app.
 | --- | --- |
 | id | Number that identifies the user, assigned automatically |
 | email | Microsoft work email of the employee. Two users cannot share the same email. |
-| entra_object_id | Identifier of the employee's Microsoft account. It stays empty until the employee signs in for the first time. |
+| entra_object_id | Identifier of the employee's Microsoft account. It stays empty until the employee's first action that requires a permission. |
 | display_name | Name shown in the app |
 | role_id | The role of the employee (see the roles table) |
 | is_active | Yes while the employee has access. Set to no when the admin removes access. |
@@ -58,7 +58,7 @@ Passwords are not stored in the app. Employees sign in with their Microsoft work
 ## Life of an account
 
 1. The admin adds the employee with their work email, name and role.
-2. On the first sign-in, the app links the employee's Microsoft account to that row.
+2. The first time an employee's action requires a permission, the app links the employee's Microsoft account to that row.
 3. The admin can change the role at any time.
 4. When the admin removes access, the account is deactivated rather than deleted, so the history of who did what is kept.
 

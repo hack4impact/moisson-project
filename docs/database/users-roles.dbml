@@ -19,7 +19,7 @@ Table roles {
 Table users {
   id integer [not null, increment]
   email varchar(256) [not null, note: 'Work email, always lowercase']
-  entra_object_id uuid [null, note: 'Microsoft Entra id, filled on the first sign-in']
+  entra_object_id uuid [null, note: 'Microsoft Entra id, filled on the first permission check']
   display_name varchar(200) [not null]
   role_id integer [not null]
   is_active boolean [not null, default: true, note: 'False once the admin removes access']

@@ -56,7 +56,7 @@ The department names above come from the PRD. The admin chooses the role that ma
 | The employee signed in with Microsoft but was never added to the app | 403 for every protected action |
 | The admin removed the employee's access | 403 for every protected action, even for a former Admin |
 
-On their first sign-in, the employee's Microsoft account is linked to the account the admin created with their email. After that, the app recognizes them by their Microsoft account, even if their email changes.
+The first time an employee does an action that requires a permission, their Microsoft account is linked to the account the admin created with their email. After that, the app recognizes them by their Microsoft account, even if their email changes.
 
 ## For developers
 
@@ -84,13 +84,15 @@ Use the constants in `Permissions`, never a role name. The roles allowed for eac
 | `Permissions` | `src/MoissonMontreal.Core/Authorization/` | The permissions and the roles allowed for each one |
 | `PermissionPolicies` | `src/MoissonMontreal.Api/Authorization/` | Creates one authorization policy per permission |
 | `PermissionHandler` | `src/MoissonMontreal.Api/Authorization/` | Allows the request when the employee's role is in the list, otherwise the API answers 403 |
-| `UserLookupService` | `src/MoissonMontreal.Api/Authorization/` | Finds the employee's active account in the `users` table and links it on the first sign-in |
+| `UserLookupService` | `src/MoissonMontreal.Api/Authorization/` | Finds the employee's active account in the `users` table and links it at the first permission check |
 
 The role is read from the database only when an endpoint requires a permission. Endpoints such as `/health` and `api/me` do not read it.
 
+The Microsoft account is linked by `UserLookupService`, called from `PermissionHandler`, the first time the employee calls an endpoint that requires a permission. Signing in or calling `/api/me` does not link the account, so `entra_object_id` can still be empty after a sign-in.
+
 ### Tests
 
-`PermissionTests` checks every role against every permission, the 403 and 401 answers, and the link on the first sign-in. These tests need Docker, since they use a PostgreSQL container.
+`PermissionTests` checks every role against every permission, the 403 and 401 answers and the account link at the first permission check. These tests need Docker, since they use a PostgreSQL container.
 
 ## Open points
 
