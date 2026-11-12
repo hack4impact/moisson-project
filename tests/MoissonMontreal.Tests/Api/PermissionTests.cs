@@ -4,6 +4,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using MoissonMontreal.Api.Authorization;
 using MoissonMontreal.Core.Authorization;
 using MoissonMontreal.Tests.Fixtures;
 
@@ -152,7 +153,30 @@ public class PermissionTests(PermissionsApiFactory factory) : IClassFixture<Perm
         Assert.Equal(Guid.Parse(AuthenticatedApiFactory.ObjectId), user.EntraObjectId);
     }
 
-    private async Task<bool> AuthorizeAsync(string permission, string? tokenRole = null)
+    [Fact]
+    public async Task UserLookup_QueriesTheDatabaseOncePerRequest()
+    {
+        await factory.ReplaceUsersWithAsync(RoleCodes.Supply);
+        var principal = CreatePrincipal();
+
+        using (var request = factory.Services.CreateScope())
+        {
+            var userLookup = request.ServiceProvider.GetRequiredService<UserLookupService>();
+            Assert.NotNull(await userLookup.FindActiveUserAsync(principal));
+
+            await factory.RemoveAllUsersAsync();
+
+            Assert.NotNull(await userLookup.FindActiveUserAsync(principal));
+        }
+
+        using (var nextRequest = factory.Services.CreateScope())
+        {
+            var userLookup = nextRequest.ServiceProvider.GetRequiredService<UserLookupService>();
+            Assert.Null(await userLookup.FindActiveUserAsync(principal));
+        }
+    }
+
+    private static ClaimsPrincipal CreatePrincipal(string? tokenRole = null)
     {
         var claims = new List<Claim>
         {
@@ -164,7 +188,12 @@ public class PermissionTests(PermissionsApiFactory factory) : IClassFixture<Perm
             claims.Add(new Claim("roles", tokenRole));
         }
 
-        var user = new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "Test"));
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "Test"));
+    }
+
+    private async Task<bool> AuthorizeAsync(string permission, string? tokenRole = null)
+    {
+        var user = CreatePrincipal(tokenRole);
         using var scope = factory.Services.CreateScope();
         var authorization = scope.ServiceProvider.GetRequiredService<IAuthorizationService>();
 

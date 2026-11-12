@@ -16,6 +16,16 @@ public class UserLookupService
     private readonly MoissonDbContext _dbContext;
 
     /// <summary>
+    /// Microsoft account id of the last employee looked up during this request, or <c>null</c> before the first lookup.
+    /// </summary>
+    private Guid? _cachedObjectId;
+
+    /// <summary>
+    /// Result of the last lookup during this request, so the database is queried only once per employee and request.
+    /// </summary>
+    private User? _cachedUser;
+
+    /// <summary>
     /// Creates the service.
     /// </summary>
     /// <param name="dbContext">Database of the app, one per request.</param>
@@ -27,6 +37,7 @@ public class UserLookupService
     /// <summary>
     /// Finds the active account of the signed-in employee, with its role.
     /// If the account is not linked yet, it is found by email and linked to the employee's Microsoft account.
+    /// The result is kept for the rest of the request, so the database is queried only once.
     /// </summary>
     /// <param name="principal">Signed-in employee, built from the validated access token.</param>
     /// <param name="cancellationToken">Cancelled when the request is aborted.</param>
@@ -38,12 +49,19 @@ public class UserLookupService
             return null;
         }
 
+        if (_cachedObjectId == objectId)
+        {
+            return _cachedUser;
+        }
+
         var user = await _dbContext.Users
             .Include(u => u.Role)
             .SingleOrDefaultAsync(u => u.EntraObjectId == objectId, cancellationToken)
             ?? await LinkByEmailAsync(principal, objectId, cancellationToken);
 
-        return user is { IsActive: true } ? user : null;
+        _cachedObjectId = objectId;
+        _cachedUser = user is { IsActive: true } ? user : null;
+        return _cachedUser;
     }
 
     /// <summary>
