@@ -55,8 +55,11 @@ The department names above come from the PRD. The admin chooses the role that ma
 | The employee's role does not allow the action | 403: access refused |
 | The employee signed in with Microsoft but was never added to the app | 403 for every protected action |
 | The admin removed the employee's access | 403 for every protected action, even for a former Admin |
+| The employee's account is already linked to another Microsoft account | 403 for every protected action |
 
-The first time an employee does an action that requires a permission, their Microsoft account is linked to the account the admin created with their email. After that, the app recognizes them by their Microsoft account, even if their email changes.
+The first time an employee does an action that requires a permission, their Microsoft account is linked to the account the admin created with their email. After that, the app recognizes them by their Microsoft account, even if their email changes. An account whose access was removed can still be linked, but the API keeps refusing its actions.
+
+If the employee's Microsoft account is recreated (for example, IT deleted and recreated it), the app no longer recognizes them and refuses all their actions. The app cannot reset this link yet (see Open points).
 
 ## For developers
 
@@ -97,3 +100,4 @@ The Microsoft account is linked by `UserLookupService`, called from `PermissionH
 ## Open points
 
 - With "Admin can do everything", the same Admin could approve a receipt at both levels. If two different people must approve, that rule belongs to the receipt status workflow, not to the roles.
+- The app cannot reset the Microsoft link of an account yet (empty `entra_object_id`), for example when IT recreates an employee's Microsoft account. To discuss with the team: an action for this in the account management screen.
