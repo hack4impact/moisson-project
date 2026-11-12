@@ -29,7 +29,8 @@ public sealed class PermissionHandler : AuthorizationHandler<PermissionRequireme
     /// <param name="requirement">Roles allowed by the permission.</param>
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
     {
-        var user = await _userLookup.FindActiveUserAsync(context.User);
+        var cancellationToken = (context.Resource as HttpContext)?.RequestAborted ?? CancellationToken.None;
+        var user = await _userLookup.FindActiveUserAsync(context.User, cancellationToken);
         if (user is not null && requirement.AllowedRoles.Contains(user.Role.Code))
         {
             context.Succeed(requirement);
