@@ -7,7 +7,7 @@ The database has four parts:
 | Part | Tables | What it holds |
 | --- | --- | --- |
 | Accounts | roles, users | Who can use the app and what each person is allowed to do |
-| Donations | donors, food_items | Who gave food, what they gave, when, and in what condition |
+| Donations | donors, food_items, quality_classes | Who gave food, what they gave, when, and in what condition |
 | Tax receipts | receipts, receipt_items | The receipts given to donors and the value of each food item on them |
 | Price grid | catalog_items, prices | The types of food the app knows, and the price of each one over time |
 
@@ -41,15 +41,23 @@ The organizations and people who give food: name, address, postal code and conta
 
 ### food_items
 
-The food given by a donor. Each row holds what the food is, the quantity and its unit (for example 12.50 kg), the date it was received, and its quality grade:
+The food given by a donor. Each row holds what the food is, the quantity and its unit (for example 12.50 kg), the date it was received, and its quality class (see quality_classes).
 
-| Grade | Meaning | Share of the price kept |
+Every food item belongs to one donor and has one quality class. It can also point to its catalog item (see catalog_items), which gives its price. That link stays empty until the donation is matched to the catalog, which is still to come.
+
+### quality_classes
+
+The quality classes of donated food, and the share of the price kept for each one when a donation is valued. The class is set on each donation, not on the type of food, because the same food can be given in different conditions.
+
+| Class | Name | Share of the price kept |
 | --- | --- | --- |
-| A | Comparable to what a grocery store sells | 100 % |
-| B | Has imperfections | Between 50 % and 75 %, a range set by the warehouse director |
-| C | Close to its expiry date | 0 %, no value |
+| A | Grocery quality: comparable to what a grocery store sells | 100 % |
+| B | Imperfect: has imperfections | Between 50 % and 75 %, a range set by the warehouse director. 50 % is applied by default. |
+| C | Near expiry: close to its expiry date | 0 %, no value |
 
-Every food item belongs to one donor. It can also point to its catalog item (see catalog_items), which gives its price. That link stays empty until the donation is matched to the catalog, which is still to come.
+These initial values follow the PRD and are still to be confirmed with Nafissa.
+
+More detail: [Quality classes](quality-classes.md).
 
 ### receipts
 
@@ -111,16 +119,20 @@ The database itself refuses anything that would break these rules, even if there
 - A food item cannot be deleted while it is on a receipt.
 - A role cannot be deleted while someone has it.
 - A catalog item cannot be deleted while it has prices or while a donation points to it.
+- A quality class cannot be deleted while a food item uses it.
 
 **Exact amounts**
 - All amounts are stored as exact decimal numbers, so no cent is lost along the way.
+- Quality percentages are exact decimal numbers with 2 decimal places, such as 62.50 %, never approximate numbers.
 - Prices keep up to 4 decimal places, so a price such as $0.125 per kg is stored exactly.
 - Totals and line values are in dollars and cents.
 
 **Valid values**
 - A quantity and a price must be greater than zero.
 - A quality percentage must be between 0 and 100.
-- A quality grade must be A, B or C.
+- A food item must have a quality class that exists.
+- A quality class keeps a default percentage within its own range, and the range stays between 0 % and 100 %.
+- Two quality classes cannot have the same code or the same name, and a code is one capital letter from A to Z.
 - A receipt total cannot be negative.
 - Donor names, food names, catalog item names and units cannot be empty.
 
@@ -141,7 +153,6 @@ These parts of the project are planned in their own issues and will add tables l
 | Feature | Issue |
 | --- | --- |
 | Price lookup by date | #25 |
-| Quality grades with their percentages | #26 |
 | Food catalog details: category, Business Central code, unit and quality | #27 |
 | Calculation of a donation's value | #30 |
 | Receipt statuses: prepared, approved at two levels, issued, cancelled and replaced | #31 |
@@ -169,6 +180,7 @@ Each table comes from one of these migrations:
 | donors, food_items | [20261105163138_CreateDonorsAndFoodItems](../../src/MoissonMontreal.Api/Data/Migrations/20261105163138_CreateDonorsAndFoodItems.cs) | [0002_create_donors_and_food_items.sql](sql/0002_create_donors_and_food_items.sql) | This page |
 | receipts, receipt_items | [20261107041912_CreateReceipts](../../src/MoissonMontreal.Api/Data/Migrations/20261107041912_CreateReceipts.cs) | [0003_create_receipts.sql](sql/0003_create_receipts.sql) | [receipts.md](receipts.md) |
 | catalog_items, prices | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
+| quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
 
 The SQL scripts must be run in order on an empty database.
 

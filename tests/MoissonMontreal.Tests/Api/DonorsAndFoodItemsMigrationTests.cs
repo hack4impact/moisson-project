@@ -185,7 +185,7 @@ public class DonorsAndFoodItemsMigrationTests(PostgresFixture postgres) : IClass
     }
 
     [Fact]
-    public async Task SaveChanges_Throws_WhenQualityIsNotABandC()
+    public async Task SaveChanges_Throws_WhenQualityClassDoesNotExist()
     {
         await using var context = CreateContext();
         await context.Database.MigrateAsync();
@@ -200,7 +200,7 @@ public class DonorsAndFoodItemsMigrationTests(PostgresFixture postgres) : IClass
             Quality = "D"
         });
 
-        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_food_items_quality");
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "fk_food_items_quality_classes_quality");
     }
 
     [Fact]

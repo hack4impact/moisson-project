@@ -155,11 +155,12 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.HasIndex("DonorId")
                         .HasDatabaseName("ix_food_items_donor_id");
 
+                    b.HasIndex("Quality")
+                        .HasDatabaseName("ix_food_items_quality");
+
                     b.ToTable("food_items", null, t =>
                         {
                             t.HasCheckConstraint("ck_food_items_name_not_empty", "length(name) > 0");
-
-                            t.HasCheckConstraint("ck_food_items_quality", "quality IN ('A', 'B', 'C')");
 
                             t.HasCheckConstraint("ck_food_items_quantity_positive", "quantity > 0");
 
@@ -204,6 +205,53 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.ToTable("prices", null, t =>
                         {
                             t.HasCheckConstraint("ck_prices_unit_price_positive", "unit_price > 0");
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.QualityClass", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)")
+                        .HasColumnName("code");
+
+                    b.Property<decimal>("MaxPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("max_percentage");
+
+                    b.Property<decimal>("MinPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("min_percentage");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<decimal>("Percentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("percentage");
+
+                    b.HasKey("Code")
+                        .HasName("pk_quality_classes");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_quality_classes_name");
+
+                    b.ToTable("quality_classes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_quality_classes_code_format", "code ~ '^[A-Z]$'");
+
+                            t.HasCheckConstraint("ck_quality_classes_name_not_empty", "length(name) > 0");
+
+                            t.HasCheckConstraint("ck_quality_classes_percentage_in_range", "percentage BETWEEN min_percentage AND max_percentage");
+
+                            t.HasCheckConstraint("ck_quality_classes_range_valid", "min_percentage >= 0 AND min_percentage <= max_percentage AND max_percentage <= 100");
                         });
                 });
 
@@ -449,9 +497,18 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_food_items_donors_donor_id");
 
+                    b.HasOne("MoissonMontreal.Core.Entities.QualityClass", "QualityClass")
+                        .WithMany()
+                        .HasForeignKey("Quality")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_food_items_quality_classes_quality");
+
                     b.Navigation("CatalogItem");
 
                     b.Navigation("Donor");
+
+                    b.Navigation("QualityClass");
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Price", b =>

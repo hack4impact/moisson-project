@@ -5,7 +5,7 @@ using MoissonMontreal.Core.Entities;
 namespace MoissonMontreal.Api.Data.Configurations;
 
 /// <summary>
-/// Column settings for the food_items table, including the links to the donor and to the catalog item.
+/// Column settings for the food_items table, including the links to the donor, to the catalog item and to the quality class.
 /// </summary>
 public class FoodItemConfiguration : IEntityTypeConfiguration<FoodItem>
 {
@@ -14,7 +14,6 @@ public class FoodItemConfiguration : IEntityTypeConfiguration<FoodItem>
     {
         builder.ToTable(t =>
         {
-            t.HasCheckConstraint("ck_food_items_quality", "quality IN ('A', 'B', 'C')");
             t.HasCheckConstraint("ck_food_items_quantity_positive", "quantity > 0");
             t.HasCheckConstraint("ck_food_items_name_not_empty", "length(name) > 0");
             t.HasCheckConstraint("ck_food_items_unit_not_empty", "length(unit) > 0");
@@ -40,6 +39,11 @@ public class FoodItemConfiguration : IEntityTypeConfiguration<FoodItem>
         builder.HasOne(f => f.CatalogItem)
             .WithMany()
             .HasForeignKey(f => f.CatalogItemId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(f => f.QualityClass)
+            .WithMany()
+            .HasForeignKey(f => f.Quality)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
