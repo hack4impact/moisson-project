@@ -58,6 +58,12 @@ public class PermissionTests(PermissionsApiFactory factory) : IClassFixture<Perm
         Assert.Equal([RoleCodes.Supply, RoleCodes.SupplyDirector, RoleCodes.Finance, RoleCodes.Admin], codes);
     }
 
+    [Fact]
+    public void AllPermissions_MatchesThePermissionsInAllowedRoles()
+    {
+        Assert.Equivalent(Permissions.AllowedRoles.Keys, AllPermissions, strict: true);
+    }
+
     [Theory]
     [MemberData(nameof(RolesAndPermissions))]
     public async Task Policy_FollowsThePrdTable(string role, string permission)
