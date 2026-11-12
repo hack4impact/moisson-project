@@ -154,6 +154,47 @@ public class PermissionTests(PermissionsApiFactory factory) : IClassFixture<Perm
     }
 
     [Fact]
+    public async Task ProtectedEndpoint_LinksTheAccountWithPreferredUsername_WhenTokenHasNoEmail()
+    {
+        await factory.ReplaceUsersWithAsync(
+            RoleCodes.SupplyDirector, isLinked: false, email: AuthenticatedApiFactory.PreferredUsername);
+
+        var response = await GetProtectedEndpointAsync(factory.CreateToken(email: null));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var context = factory.CreateDbContext();
+        var user = await context.Users.SingleAsync();
+        Assert.Equal(Guid.Parse(AuthenticatedApiFactory.ObjectId), user.EntraObjectId);
+    }
+
+    [Fact]
+    public async Task ProtectedEndpoint_LinksTheAccountButReturnsForbidden_WhenAccountIsInactive()
+    {
+        await factory.ReplaceUsersWithAsync(RoleCodes.SupplyDirector, isActive: false, isLinked: false);
+
+        var response = await GetProtectedEndpointAsync(factory.CreateToken());
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        await using var context = factory.CreateDbContext();
+        var user = await context.Users.SingleAsync();
+        Assert.Equal(Guid.Parse(AuthenticatedApiFactory.ObjectId), user.EntraObjectId);
+    }
+
+    [Fact]
+    public async Task ProtectedEndpoint_ReturnsForbidden_WhenEmailIsLinkedToAnotherMicrosoftAccount()
+    {
+        var otherObjectId = Guid.NewGuid();
+        await factory.ReplaceUsersWithAsync(RoleCodes.SupplyDirector, linkedObjectId: otherObjectId);
+
+        var response = await GetProtectedEndpointAsync(factory.CreateToken());
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        await using var context = factory.CreateDbContext();
+        var user = await context.Users.SingleAsync();
+        Assert.Equal(otherObjectId, user.EntraObjectId);
+    }
+
+    [Fact]
     public async Task UserLookup_QueriesTheDatabaseOncePerRequest()
     {
         await factory.ReplaceUsersWithAsync(RoleCodes.Supply);

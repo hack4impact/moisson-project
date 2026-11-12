@@ -37,18 +37,23 @@ public class PermissionsApiFactory : AuthenticatedApiFactory, IAsyncLifetime
     public MoissonDbContext CreateDbContext() =>
         new(new DbContextOptionsBuilder<MoissonDbContext>().UseNpgsql(_postgres.ConnectionString).Options);
 
-    public async Task ReplaceUsersWithAsync(string roleCode, bool isActive = true, bool isLinked = true)
+    public async Task ReplaceUsersWithAsync(
+        string roleCode,
+        bool isActive = true,
+        bool isLinked = true,
+        string email = Email,
+        Guid? linkedObjectId = null)
     {
         await using var context = CreateDbContext();
         await context.Users.ExecuteDeleteAsync();
         var roleId = await context.Roles.Where(r => r.Code == roleCode).Select(r => r.Id).SingleAsync();
         context.Users.Add(new User
         {
-            Email = Email,
+            Email = email,
             DisplayName = Name,
             RoleId = roleId,
             IsActive = isActive,
-            EntraObjectId = isLinked ? Guid.Parse(ObjectId) : null,
+            EntraObjectId = isLinked ? linkedObjectId ?? Guid.Parse(ObjectId) : null,
         });
         await context.SaveChangesAsync();
     }
