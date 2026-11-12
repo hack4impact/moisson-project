@@ -51,8 +51,8 @@ Each access token contains the following claims about the signed-in employee:
 
 | Claim | Content | Use in the app |
 | --- | --- | --- |
-| `oid` | Identifier of the Microsoft account | Stored in `users.entra_object_id` on the first sign-in |
-| `email` | Work email (optional claim added to the access token) | Used to find the employee in the `users` table on the first sign-in |
+| `oid` | Identifier of the Microsoft account | Stored in `users.entra_object_id` when the account is linked |
+| `email` | Work email (optional claim added to the access token) | Used to find the employee in the `users` table when the account is not linked yet |
 | `preferred_username` | Sign-in name, usually the same as the email | Fallback when `email` is missing |
 | `name` | Display name | Can prefill `users.display_name` |
 | `tid` | Tenant ID | Confirms the token comes from the Moisson Montréal tenant |

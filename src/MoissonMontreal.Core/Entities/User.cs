@@ -16,7 +16,7 @@ public class User
     public string Email { get; set; } = string.Empty;
 
     /// <summary>
-    /// Microsoft Entra object id, filled on the employee's first sign-in.
+    /// Microsoft Entra object id, filled when the account is linked to the employee's Microsoft account. Empty until then.
     /// </summary>
     public Guid? EntraObjectId { get; set; }
 
