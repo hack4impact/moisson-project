@@ -11,6 +11,12 @@
                Spacing="12">
         <TextBlock Text="{Binding Title}"/>
         <Button Content="Sign in" Command="{Binding SignInCommand}"/>
-    </StackPanel>             
+        <TextBlock Text="Continue in your browser to sign in..."
+                   IsVisible="{Binding SignInCommand.IsRunning}"/>
+        <Button Content="Cancel"
+                Command="{Binding SignInCancelCommand}"
+                IsVisible="{Binding SignInCommand.IsRunning}"/>
+        <TextBlock Text="{Binding ErrorMessage}"/>
+    </StackPanel>            
 
 </UserControl>

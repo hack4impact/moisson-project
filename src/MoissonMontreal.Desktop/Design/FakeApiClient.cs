@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using MoissonMontreal.Desktop.Services;
+using MoissonMontreal.Core.Dtos;
 
 namespace MoissonMontreal.Desktop.Design;
 
@@ -13,5 +14,16 @@ public class FakeApiClient : IApiClient
     public Task<bool> IsApiReachableAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(true);
+    }
+
+    /// <inheritdoc/>
+    public Task<CurrentUserDto?> GetCurrentUserAsync(CancellationToken cancellationToken = default)
+    {
+        var user = new CurrentUserDto(
+            ObjectId: "00000000-0000-0000-0000-000000000000",
+            Name: "Preview User",
+            Email: "preview@example.org",
+            TenantId: null);
+        return Task.FromResult<CurrentUserDto?>(user);
     }
 }
