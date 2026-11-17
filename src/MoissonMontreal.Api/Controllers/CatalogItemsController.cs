@@ -1,8 +1,11 @@
+using System.Linq.Expressions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MoissonMontreal.Api.Catalog;
 using MoissonMontreal.Api.Data;
 using MoissonMontreal.Api.Data.Configurations;
+using MoissonMontreal.Core.Authorization;
 using MoissonMontreal.Core.Dtos;
 using MoissonMontreal.Core.Entities;
 using Npgsql;
@@ -11,11 +14,26 @@ namespace MoissonMontreal.Api.Controllers;
 
 /// <summary>
 /// Lists, creates and edits the foods in the catalog.
+/// Any signed-in employee can read the catalog. Creating and editing an item requires <see cref="Permissions.ManagePriceGrid"/>.
 /// </summary>
 [ApiController]
 [Route("api/catalog-items")]
 public class CatalogItemsController(MoissonDbContext db) : ControllerBase
 {
+    private const string QualityClassMissing = "QualityClass must be a quality class that exists.";
+
+    private static readonly Expression<Func<CatalogItem, CatalogItemDto>> AsDto = item => new CatalogItemDto(
+        item.Id,
+        item.Name,
+        item.Category,
+        item.BusinessCentralCode,
+        item.Unit,
+        item.QualityClassCode,
+        item.CreatedAt,
+        item.UpdatedAt);
+
+    private static readonly Func<CatalogItem, CatalogItemDto> ToDto = AsDto.Compile();
+
     /// <summary>
     /// Returns every catalog item, ordered by name.
     /// </summary>
@@ -25,15 +43,7 @@ public class CatalogItemsController(MoissonDbContext db) : ControllerBase
         var items = await db.CatalogItems
             .OrderBy(item => item.Name)
             .ThenBy(item => item.BusinessCentralCode)
-            .Select(item => new CatalogItemDto(
-                item.Id,
-                item.Name,
-                item.Category,
-                item.BusinessCentralCode,
-                item.Unit,
-                item.QualityClassCode,
-                item.CreatedAt,
-                item.UpdatedAt))
+            .Select(AsDto)
             .ToListAsync(cancellationToken);
 
         return items;
@@ -53,25 +63,26 @@ public class CatalogItemsController(MoissonDbContext db) : ControllerBase
     /// Adds a catalog item. The Business Central code must be new, and the quality class must exist.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = Permissions.ManagePriceGrid)]
     public async Task<ActionResult<CatalogItemDto>> Create(CatalogItemRequest request, CancellationToken cancellationToken)
     {
-        var fields = await TryReadAsync(request, cancellationToken);
-        if (fields is null)
+        var (fields, errors) = await TryReadAsync(request, cancellationToken);
+        if (errors is not null)
         {
-            return ValidationProblem(new ValidationProblemDetails(LastErrors));
+            return ValidationProblem(new ValidationProblemDetails(errors));
         }
 
         var item = new CatalogItem
         {
-            Name = fields.Value.Name,
-            Category = fields.Value.Category,
-            BusinessCentralCode = fields.Value.BusinessCentralCode,
-            Unit = fields.Value.Unit,
-            QualityClassCode = fields.Value.QualityClass,
+            Name = fields.Name,
+            Category = fields.Category,
+            BusinessCentralCode = fields.BusinessCentralCode,
+            Unit = fields.Unit,
+            QualityClassCode = fields.QualityClass,
         };
         db.CatalogItems.Add(item);
 
-        if (await SaveConflictAsync(cancellationToken) is { } conflict)
+        if (await TrySaveAsync(cancellationToken) is { } conflict)
         {
             return conflict;
         }
@@ -83,12 +94,13 @@ public class CatalogItemsController(MoissonDbContext db) : ControllerBase
     /// Replaces the fields of a catalog item. The Business Central code must stay unique.
     /// </summary>
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = Permissions.ManagePriceGrid)]
     public async Task<ActionResult<CatalogItemDto>> Update(Guid id, CatalogItemRequest request, CancellationToken cancellationToken)
     {
-        var fields = await TryReadAsync(request, cancellationToken);
-        if (fields is null)
+        var (fields, errors) = await TryReadAsync(request, cancellationToken);
+        if (errors is not null)
         {
-            return ValidationProblem(new ValidationProblemDetails(LastErrors));
+            return ValidationProblem(new ValidationProblemDetails(errors));
         }
 
         var item = await db.CatalogItems.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
@@ -97,14 +109,14 @@ public class CatalogItemsController(MoissonDbContext db) : ControllerBase
             return NotFound();
         }
 
-        item.Name = fields.Value.Name;
-        item.Category = fields.Value.Category;
-        item.BusinessCentralCode = fields.Value.BusinessCentralCode;
-        item.Unit = fields.Value.Unit;
-        item.QualityClassCode = fields.Value.QualityClass;
+        item.Name = fields.Name;
+        item.Category = fields.Category;
+        item.BusinessCentralCode = fields.BusinessCentralCode;
+        item.Unit = fields.Unit;
+        item.QualityClassCode = fields.QualityClass;
         item.UpdatedAt = DateTimeOffset.UtcNow;
 
-        if (await SaveConflictAsync(cancellationToken) is { } conflict)
+        if (await TrySaveAsync(cancellationToken) is { } conflict)
         {
             return conflict;
         }
@@ -112,30 +124,30 @@ public class CatalogItemsController(MoissonDbContext db) : ControllerBase
         return ToDto(item);
     }
 
-    private Dictionary<string, string[]> LastErrors { get; set; } = [];
-
-    private async Task<CatalogItemFields?> TryReadAsync(CatalogItemRequest request, CancellationToken cancellationToken)
+    private async Task<(CatalogItemFields Fields, Dictionary<string, string[]>? Errors)> TryReadAsync(
+        CatalogItemRequest request,
+        CancellationToken cancellationToken)
     {
         if (!CatalogItemValidator.TryNormalize(request, out var fields, out var errors))
         {
-            LastErrors = errors;
-            return null;
+            return (fields, errors);
         }
 
         var qualityExists = await db.QualityClasses.AnyAsync(quality => quality.Code == fields.QualityClass, cancellationToken);
         if (!qualityExists)
         {
-            LastErrors = new Dictionary<string, string[]>
-            {
-                [nameof(CatalogItemRequest.QualityClass)] = ["QualityClass must be a quality class that exists."],
-            };
-            return null;
+            return (fields, QualityClassErrors());
         }
 
-        return fields;
+        return (fields, null);
     }
 
-    private async Task<ActionResult?> SaveConflictAsync(CancellationToken cancellationToken)
+    private static Dictionary<string, string[]> QualityClassErrors() => new()
+    {
+        [nameof(CatalogItemRequest.QualityClass)] = [QualityClassMissing],
+    };
+
+    private async Task<ActionResult?> TrySaveAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -152,15 +164,11 @@ public class CatalogItemsController(MoissonDbContext db) : ControllerBase
                 Detail = "A catalog item with this Business Central code already exists.",
             });
         }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException postgres
+            && postgres.ConstraintName == CatalogItemConfiguration.QualityClassForeignKey)
+        {
+            // The quality class was deleted after TryReadAsync checked it.
+            return ValidationProblem(new ValidationProblemDetails(QualityClassErrors()));
+        }
     }
-
-    private static CatalogItemDto ToDto(CatalogItem item) => new(
-        item.Id,
-        item.Name,
-        item.Category,
-        item.BusinessCentralCode,
-        item.Unit,
-        item.QualityClassCode,
-        item.CreatedAt,
-        item.UpdatedAt);
 }

@@ -9,6 +9,12 @@ ALTER TABLE catalog_items ADD quality_class character varying(1) NOT NULL DEFAUL
 
 ALTER TABLE catalog_items ADD updated_at timestamp with time zone;
 
+UPDATE catalog_items
+SET category = 'To classify',
+    business_central_code = 'TO-FIX-' || id::text,
+    unit = 'unit',
+    quality_class = 'A';
+
 ALTER TABLE catalog_items ALTER COLUMN category DROP DEFAULT;
 
 ALTER TABLE catalog_items ALTER COLUMN business_central_code DROP DEFAULT;

@@ -8,7 +8,12 @@ namespace MoissonMontreal.Api.Data.Migrations
     /// <inheritdoc />
     public partial class AddCatalogItemDetails : Migration
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// Adds the catalog item details. The UPDATE that fills existing rows is written by hand, not generated:
+        /// without it, rows that already exist would keep empty values and fail the checks, the unique index and the
+        /// foreign key added below. Keep it if this migration is regenerated.
+        /// </summary>
+        /// <param name="migrationBuilder">Builder used to describe the operations.</param>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
@@ -48,6 +53,15 @@ namespace MoissonMontreal.Api.Data.Migrations
                 table: "catalog_items",
                 type: "timestamp with time zone",
                 nullable: true);
+
+            // Items created before this migration get placeholder values to fix by hand. The id keeps each code unique.
+            migrationBuilder.Sql("""
+                UPDATE catalog_items
+                SET category = 'To classify',
+                    business_central_code = 'TO-FIX-' || id::text,
+                    unit = 'unit',
+                    quality_class = 'A';
+                """);
 
             migrationBuilder.AlterColumn<string>(
                 name: "business_central_code",

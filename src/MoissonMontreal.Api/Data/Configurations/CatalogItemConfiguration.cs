@@ -15,6 +15,11 @@ public class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogItem>
     public const string BusinessCentralCodeIndex = "ix_catalog_items_business_central_code";
 
     /// <summary>
+    /// Name of the foreign key from the catalog item to its quality class.
+    /// </summary>
+    public const string QualityClassForeignKey = "fk_catalog_items_quality_classes_quality_class";
+
+    /// <summary>
     /// Configures the columns, the unique Business Central code and the link to the quality class.
     /// </summary>
     /// <param name="builder">Builder used to configure the catalog item entity.</param>
@@ -53,7 +58,7 @@ public class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogItem>
             .WithMany()
             .HasForeignKey(c => c.QualityClassCode)
             .OnDelete(DeleteBehavior.Restrict)
-            .HasConstraintName("fk_catalog_items_quality_classes_quality_class");
+            .HasConstraintName(QualityClassForeignKey);
 
         builder.Property(c => c.CreatedAt).HasDefaultValueSql("now()");
     }

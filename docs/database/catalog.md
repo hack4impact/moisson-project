@@ -44,7 +44,7 @@ The code is how the catalog item is matched with the accounting system. The data
 
 ## API
 
-List, create and edit are available at `api/catalog-items`. Creating or editing an item with a Business Central code that is already used returns a conflict. A quality class that does not exist is refused.
+List, create and edit are available at `api/catalog-items`. Any signed-in employee can list the catalog. Creating or editing an item requires the ManagePriceGrid permission, so only an Admin can do it. Creating or editing an item with a Business Central code that is already used returns a conflict. A quality class that does not exist is refused.
 
 ## Migration
 
@@ -52,5 +52,7 @@ List, create and edit are available at `api/catalog-items`. Creating or editing 
 - Equivalent SQL script: [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql)
 - Table settings: [CatalogItemConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/CatalogItemConfiguration.cs)
 - API: [CatalogItemsController.cs](../../src/MoissonMontreal.Api/Controllers/CatalogItemsController.cs)
+
+Catalog items that existed before this migration get placeholder values, so the new rules can be added: category `To classify`, Business Central code `TO-FIX-` followed by the item id, unit `unit` and quality class A. Fix these items by hand after the migration.
 
 The SQL script must be run after [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql). It records itself in the migration history, so Entity Framework will not apply it a second time.

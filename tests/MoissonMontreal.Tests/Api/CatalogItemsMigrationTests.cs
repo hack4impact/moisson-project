@@ -1,5 +1,7 @@
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using MoissonMontreal.Api.Data;
 using MoissonMontreal.Api.Data.Configurations;
 using MoissonMontreal.Core.Entities;
@@ -10,6 +12,32 @@ namespace MoissonMontreal.Tests.Api;
 [Trait("Category", "Integration")]
 public class CatalogItemsMigrationTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
 {
+    private const string MigrationBeforeCatalogItemDetails = "20261112060008_CreateQualityClasses";
+
+    [Fact]
+    public async Task Migrate_FillsExistingCatalogItems_WithPlaceholderValues()
+    {
+        await using var context = CreateContext("catalog_upgrade");
+        await context.GetService<IMigrator>().MigrateAsync(MigrationBeforeCatalogItemDetails);
+        await context.Database.ExecuteSqlRawAsync("""
+            INSERT INTO catalog_items (id, name) VALUES
+              ('00000000-0000-0000-0000-0000000000c1', 'Pain'),
+              ('00000000-0000-0000-0000-0000000000c2', 'Pommes');
+            """);
+
+        await context.Database.MigrateAsync();
+
+        var items = await context.CatalogItems.OrderBy(item => item.Name).ToListAsync();
+        Assert.Equal(["Pain", "Pommes"], items.Select(item => item.Name));
+        Assert.All(items, item =>
+        {
+            Assert.Equal("To classify", item.Category);
+            Assert.Equal($"TO-FIX-{item.Id}", item.BusinessCentralCode);
+            Assert.Equal("unit", item.Unit);
+            Assert.Equal("A", item.QualityClassCode);
+        });
+    }
+
     [Fact]
     public async Task CatalogItem_StoresCategoryBusinessCentralCodeUnitAndQualityClass()
     {
