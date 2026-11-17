@@ -211,7 +211,14 @@ public class PricesMigrationTests(PostgresFixture postgres) : IClassFixture<Post
         await using var context = CreateContext();
         await context.Database.MigrateAsync();
 
-        context.CatalogItems.Add(new CatalogItem { Name = "" });
+        context.CatalogItems.Add(new CatalogItem
+        {
+            Name = "",
+            Category = "Boulangerie",
+            BusinessCentralCode = "BC-EMPTY",
+            Unit = "kg",
+            QualityClassCode = "A",
+        });
 
         await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ck_catalog_items_name_not_empty");
     }
@@ -359,7 +366,14 @@ public class PricesMigrationTests(PostgresFixture postgres) : IClassFixture<Post
         await using var context = CreateContext();
         await context.Database.MigrateAsync();
 
-        var item = new CatalogItem { Name = name };
+        var item = new CatalogItem
+        {
+            Name = name,
+            Category = "Boulangerie",
+            BusinessCentralCode = "BC-" + Guid.NewGuid().ToString("N")[..12],
+            Unit = "kg",
+            QualityClassCode = "A",
+        };
         context.CatalogItems.Add(item);
         await context.SaveChangesAsync();
 

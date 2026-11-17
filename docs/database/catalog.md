@@ -1,0 +1,56 @@
+# Food catalog
+
+The catalog is the list of foods Moisson Montréal can receive. Each row is one kind of food. A donation of that food points at the row, and the price grid stores the price of one unit over time. Accounting matches the row through its Business Central code.
+
+food_items is one donation: the donor, the quantity and the date. catalog_items is the food itself.
+
+## Diagram
+
+![Food catalog diagram](images/catalog.png)
+
+The columns in this picture are the catalog item. The quality class column is a link to the quality_classes table: it stores the class code, such as A, B or C. The full database diagram in [schema.md](schema.md) shows that link together with the price grid.
+
+## Tables
+
+### catalog_items
+
+One row per kind of food. The table was created for the price grid, and these columns complete it.
+
+- **id**: code that identifies the catalog item, assigned automatically
+- **name**: name of the food, for example Pain
+- **category**: group the food belongs to, for example Boulangerie
+- **business_central_code**: code of this food in Business Central. Two catalog items cannot share a code
+- **unit**: unit used to count the food, such as kg or caisse. Free text for now, until issue #28 decides how the price of one unit works
+- **quality_class**: quality class of this food. It must be a class that exists, such as A, B or C. The class is stored on the catalog item
+- **created_at**: date and time the item was added, stored in UTC
+- **updated_at**: date and time of the last change, stored in UTC. Empty until the item is edited
+
+## Quality class
+
+The quality class belongs to the catalog item, so every donation of that food can use the same class. The classes and their percentages live in the quality_classes table. A catalog item can only use a class that is already there.
+
+A donation still keeps the quality class it was given, on food_items. That value is what a receipt uses.
+
+## Business Central code
+
+The code is how the catalog item is matched with the accounting system. The database rejects a second item with the same code. The comparison is exact, so `BC-PAIN` and `bc-pain` are two different codes.
+
+## Rules enforced by the database
+
+1. A name, a category, a Business Central code and a unit cannot be empty.
+2. A Business Central code can belong to only one catalog item.
+3. The quality class must be a quality class that exists.
+4. A quality class cannot be deleted while a catalog item uses it.
+
+## API
+
+List, create and edit are available at `api/catalog-items`. Creating or editing an item with a Business Central code that is already used returns a conflict. A quality class that does not exist is refused.
+
+## Migration
+
+- Entity Framework migration: [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs)
+- Equivalent SQL script: [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql)
+- Table settings: [CatalogItemConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/CatalogItemConfiguration.cs)
+- API: [CatalogItemsController.cs](../../src/MoissonMontreal.Api/Controllers/CatalogItemsController.cs)
+
+The SQL script must be run after [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql). It records itself in the migration history, so Entity Framework will not apply it a second time.
