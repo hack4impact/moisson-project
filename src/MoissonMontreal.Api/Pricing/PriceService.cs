@@ -27,7 +27,7 @@ public class PriceService(MoissonDbContext db)
         var item = await LoadWithPricesAsync(catalogItemId, cancellationToken);
 
         return PriceHistory.FindPriceInEffect(item.Prices, date)
-            ?? throw new PriceNotFoundException(catalogItemId, date, item.Prices.FirstOrDefault()?.EffectiveDate);
+            ?? throw new PriceNotFoundException(catalogItemId, date, PriceHistory.FindFirstEffectiveDate(item.Prices));
     }
 
     /// <summary>

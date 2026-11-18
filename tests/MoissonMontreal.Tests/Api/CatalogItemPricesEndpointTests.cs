@@ -150,7 +150,7 @@ public class CatalogItemPricesEndpointTests(PermissionsApiFactory factory) : ICl
     private async Task<Guid> AddCatalogItemAsync(string name, params (decimal UnitPrice, DateOnly EffectiveDate)[] prices)
     {
         await using var context = factory.CreateDbContext();
-        var item = new CatalogItem { Name = name };
+        var item = TestCatalogItems.Create(name);
         foreach (var (unitPrice, effectiveDate) in prices)
         {
             item.Prices.Add(new Price { UnitPrice = unitPrice, EffectiveDate = effectiveDate });

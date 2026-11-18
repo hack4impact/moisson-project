@@ -22,4 +22,16 @@ public static class PriceHistory
             .Where(p => p.EffectiveDate <= date)
             .MaxBy(p => p.EffectiveDate);
     }
+
+    /// <summary>
+    /// Returns the earliest effective date in the price history of one catalog item.
+    /// </summary>
+    /// <param name="prices">Every price of one catalog item, in any order.</param>
+    /// <returns>The first effective date, or <c>null</c> when the item has no price.</returns>
+    public static DateOnly? FindFirstEffectiveDate(IEnumerable<Price> prices)
+    {
+        ArgumentNullException.ThrowIfNull(prices);
+
+        return prices.Min(p => (DateOnly?)p.EffectiveDate);
+    }
 }

@@ -67,6 +67,26 @@ public class PriceHistoryTests
     }
 
     [Fact]
+    public void FindFirstEffectiveDate_DoesNotDependOnTheOrderOfThePrices()
+    {
+        Price[] shuffled = [January, November, December];
+
+        Assert.Equal(new DateOnly(2026, 11, 1), PriceHistory.FindFirstEffectiveDate(shuffled));
+    }
+
+    [Fact]
+    public void FindFirstEffectiveDate_ReturnsNull_WhenThereIsNoPrice()
+    {
+        Assert.Null(PriceHistory.FindFirstEffectiveDate([]));
+    }
+
+    [Fact]
+    public void FindFirstEffectiveDate_Throws_WhenPricesIsNull()
+    {
+        Assert.Throws<ArgumentNullException>(() => PriceHistory.FindFirstEffectiveDate(null!));
+    }
+
+    [Fact]
     public void FindPriceInEffect_Throws_WhenPricesIsNull()
     {
         Assert.Throws<ArgumentNullException>(() => PriceHistory.FindPriceInEffect(null!, new DateOnly(2026, 11, 15)));

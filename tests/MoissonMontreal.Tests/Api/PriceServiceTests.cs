@@ -151,7 +151,7 @@ public class PriceServiceTests(PostgresFixture postgres) : IClassFixture<Postgre
     private async Task<Guid> AddCatalogItemAsync(string name)
     {
         await using var context = CreateContext();
-        var item = new CatalogItem { Name = name };
+        var item = TestCatalogItems.Create(name);
         context.CatalogItems.Add(item);
         await context.SaveChangesAsync();
         return item.Id;
