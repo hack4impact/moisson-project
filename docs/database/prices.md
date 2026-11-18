@@ -16,13 +16,16 @@ The donors and food_items tables come from an earlier step. They are shown in th
 
 One row per type of food, such as bread or apples. A donation of bread and the next donation of bread are two different rows in food_items, but they share one catalog item, and so one price history.
 
-| Column | Meaning |
-| --- | --- |
-| id | Code that identifies the catalog item, assigned automatically |
-| name | Name of the food. It cannot be empty. |
-| created_at | Date and time the item was added, stored in UTC |
+- **id**: code that identifies the catalog item, assigned automatically
+- **name**: name of the food. It cannot be empty.
+- **category**: group the food belongs to, for example Boulangerie
+- **business_central_code**: code of this food in Business Central. Two catalog items cannot share a code
+- **unit**: unit used to count the food, such as kg or caisse
+- **quality_class**: quality class of this food. It must be a class that exists
+- **created_at**: date and time the item was added, stored in UTC
+- **updated_at**: date and time of the last change, stored in UTC. Empty until the item is edited
 
-This is the smallest catalog the price grid needs. Issue #27 adds the category, the Business Central code (which will be unique), the unit and the quality to this same table. Until then, two catalog items can have the same name.
+The category, the Business Central code, the unit and the quality class are described in [Food catalog](catalog.md).
 
 ### prices
 
@@ -80,7 +83,7 @@ Adding a new price to the grid therefore never changes a receipt that already ex
 
 ## Units and precision
 
-- A price is for one unit of the catalog item, for example 1 kg or 1 case. The unit itself is added to catalog_items in issue #27, following the decision of issue #28.
+- A price is for one unit of the catalog item, for example 1 kg or 1 case. The unit is stored on the catalog item as free text until issue #28 decides how the price of one unit is defined.
 - unit_price keeps 4 decimal places, the same as receipt_items.unit_price, so a price can be copied onto a receipt without losing anything.
 - A price with more than 4 decimals is rounded half away from zero by the database. For example, $0.12345 is stored as $0.1235.
 - The largest price allowed is $99,999,999.9999. A larger value is refused.

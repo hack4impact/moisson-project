@@ -73,9 +73,9 @@ More detail: [Receipts and their prices](receipts.md).
 
 ### catalog_items
 
-The types of food the app knows, such as bread or apples. A donation of bread and the next donation of bread are two different food items, but they share the same catalog item, and so the same price. For now a catalog item only has a name. Its category, Business Central code, unit and quality come with issue #27.
+The types of food the app knows, such as bread or apples. A donation of bread and the next donation of bread are two different food items, but they share the same catalog item, and so the same price. Each catalog item has a name, a category, a unique Business Central code, a unit and a quality class.
 
-More detail: [Price grid](prices.md).
+More detail: [Food catalog](catalog.md) and [Price grid](prices.md).
 
 ### prices
 
@@ -119,7 +119,7 @@ The database itself refuses anything that would break these rules, even if there
 - A food item cannot be deleted while it is on a receipt.
 - A role cannot be deleted while someone has it.
 - A catalog item cannot be deleted while it has prices or while a donation points to it.
-- A quality class cannot be deleted while a food item uses it.
+- A quality class cannot be deleted while a food item or a catalog item uses it.
 
 **Exact amounts**
 - All amounts are stored as exact decimal numbers, so no cent is lost along the way.
@@ -130,11 +130,12 @@ The database itself refuses anything that would break these rules, even if there
 **Valid values**
 - A quantity and a price must be greater than zero.
 - A quality percentage must be between 0 and 100.
-- A food item must have a quality class that exists.
+- A food item and a catalog item must have a quality class that exists.
 - A quality class keeps a default percentage within its own range, and the range stays between 0 % and 100 %.
 - Two quality classes cannot have the same code or the same name, and a code is one capital letter from A to Z.
 - A receipt total cannot be negative.
-- Donor names, food names, catalog item names and units cannot be empty.
+- Donor names, food names, catalog item names, categories, Business Central codes and units cannot be empty.
+- Two catalog items cannot have the same Business Central code.
 
 **Accounts**
 - Two employees cannot have the same email or the same Microsoft account.
@@ -153,7 +154,6 @@ These parts of the project are planned in their own issues and will add tables l
 | Feature | Issue |
 | --- | --- |
 | Price lookup by date | #25 |
-| Food catalog details: category, Business Central code, unit and quality | #27 |
 | Calculation of a donation's value | #30 |
 | Receipt statuses: prepared, approved at two levels, issued, cancelled and replaced | #31 |
 | Receipt numbering, unique and with no gaps | #32 |
@@ -181,6 +181,7 @@ Each table comes from one of these migrations:
 | receipts, receipt_items | [20261107041912_CreateReceipts](../../src/MoissonMontreal.Api/Data/Migrations/20261107041912_CreateReceipts.cs) | [0003_create_receipts.sql](sql/0003_create_receipts.sql) | [receipts.md](receipts.md) |
 | catalog_items, prices | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
 | quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
+| catalog item details | [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs) | [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql) | [catalog.md](catalog.md) |
 
 The SQL scripts must be run in order on an empty database.
 

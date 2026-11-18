@@ -30,6 +30,18 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
+                    b.Property<string>("BusinessCentralCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("business_central_code");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("category");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -42,12 +54,41 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
+                    b.Property<string>("QualityClassCode")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)")
+                        .HasColumnName("quality_class");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
                     b.HasKey("Id")
                         .HasName("pk_catalog_items");
 
+                    b.HasIndex("BusinessCentralCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_catalog_items_business_central_code");
+
+                    b.HasIndex("QualityClassCode")
+                        .HasDatabaseName("ix_catalog_items_quality_class");
+
                     b.ToTable("catalog_items", null, t =>
                         {
+                            t.HasCheckConstraint("ck_catalog_items_business_central_code_not_empty", "length(business_central_code) > 0");
+
+                            t.HasCheckConstraint("ck_catalog_items_category_not_empty", "length(category) > 0");
+
                             t.HasCheckConstraint("ck_catalog_items_name_not_empty", "length(name) > 0");
+
+                            t.HasCheckConstraint("ck_catalog_items_unit_not_empty", "length(unit) > 0");
                         });
                 });
 
@@ -480,6 +521,18 @@ namespace MoissonMontreal.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("ck_users_email_lowercase", "email = lower(email)");
                         });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.CatalogItem", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.QualityClass", "QualityClass")
+                        .WithMany()
+                        .HasForeignKey("QualityClassCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_catalog_items_quality_classes_quality_class");
+
+                    b.Navigation("QualityClass");
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.FoodItem", b =>
