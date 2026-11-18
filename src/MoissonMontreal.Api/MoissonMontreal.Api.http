@@ -2,3 +2,13 @@
 
 GET {{MoissonMontreal.Api_HostAddress}}/health
 ###
+
+### Price history of a catalog item (replace the id; requires a bearer token)
+GET {{MoissonMontreal.Api_HostAddress}}/api/catalog-items/00000000-0000-0000-0000-000000000000/prices
+Authorization: Bearer {{token}}
+###
+
+### Price of a catalog item in effect on a day
+GET {{MoissonMontreal.Api_HostAddress}}/api/catalog-items/00000000-0000-0000-0000-000000000000/prices/in-effect?date=2026-11-15
+Authorization: Bearer {{token}}
+###

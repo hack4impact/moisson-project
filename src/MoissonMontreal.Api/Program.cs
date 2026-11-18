@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using MoissonMontreal.Api.Data;
 using MoissonMontreal.Api.Authorization;
+using MoissonMontreal.Api.Pricing;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +38,7 @@ builder.Services.AddAuthorizationBuilder()
 
 builder.Services.AddScoped<UserLookupService>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
+builder.Services.AddScoped<PriceService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
