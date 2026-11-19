@@ -46,6 +46,19 @@ The code is how the catalog item is matched with the accounting system. The data
 
 List, create and edit are available at `api/catalog-items`. Any signed-in employee can list the catalog. Creating or editing an item requires the ManagePriceGrid permission, so only an Admin can do it. Creating or editing an item with a Business Central code that is already used returns a conflict. A quality class that does not exist is refused.
 
+## Import from Business Central
+
+`POST api/catalog-items/import` receives an Excel export of Business Central (a .xlsx file in a form field named `file`, 10 MB at most) and creates or updates catalog items by their Business Central code. Like creating an item, it requires the ManagePriceGrid permission.
+
+- The reader follows the purchase order (PO) export format, the only real Business Central export available so far: a `Lignes` sheet with the columns `Type`, `N°`, `Description` and `Code d'unité de mesure`. Columns are found by name, so their order does not matter. Only `Article` lines are imported. If the catalog later comes from another export, such as the Item list, the reader and this section must be updated.
+- A new code creates an item. Since the export has no category or quality class, the item gets the category `To classify` and the quality class A, to be corrected by hand.
+- A known code only updates the name and the unit. The category and the quality class are never changed by an import, so manual corrections are kept.
+- Importing the same file again creates no duplicates.
+- A line that cannot be imported is listed in the report with its row number and the reason. The other lines are still imported.
+- A file that cannot be read at all (not an .xlsx file, no `Lignes` sheet, a missing column, too large) is refused with a message that explains why.
+
+Code: [CatalogImportController.cs](../../src/MoissonMontreal.Api/Controllers/CatalogImportController.cs), [BusinessCentralExportReader.cs](../../src/MoissonMontreal.Api/Catalog/BusinessCentralExportReader.cs) and [CatalogImporter.cs](../../src/MoissonMontreal.Api/Catalog/CatalogImporter.cs).
+
 ## Migration
 
 - Entity Framework migration: [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs)
