@@ -1,3 +1,5 @@
+using System.IO.Compression;
+
 using ClosedXML.Excel;
 
 using MoissonMontreal.Api.Catalog;
@@ -103,7 +105,7 @@ public class BusinessCentralExportReaderTests
     }
 
     [Fact]
-    public void Read_ReadsTheSavedValue_OfAFormulaCell()
+    public void Read_ReadsTheSavedValue_OfAFormulaCell_WithoutCalculatingTheFormula()
     {
         using var workbook = new XLWorkbook();
         var sheet = AddLignesSheet(workbook);
@@ -111,11 +113,25 @@ public class BusinessCentralExportReaderTests
         sheet.Cell(2, 2).Value = "1000094";
         sheet.Cell(2, 4).FormulaA1 = "\"Citron\" & \" lime\"";
         sheet.Cell(2, 7).Value = "CA";
-        using var file = Save(workbook);
+        using var saved = Save(workbook);
+
+        // The saved value differs from what the formula gives, so reading "Citron lime" would mean the formula was calculated.
+        using var file = WithSavedFormulaValue(saved, "D2", "Nom enregistré");
 
         var row = Assert.Single(BusinessCentralExportReader.Read(file).Rows);
 
-        Assert.DoesNotContain("&", row.Item.Name);
+        Assert.Equal("Nom enregistré", row.Item.Name);
+    }
+
+    [Fact]
+    public void Read_ReturnsNoRowAndNoError_WhenTheSheetOnlyHasHeaders()
+    {
+        using var file = BuildExport();
+
+        var export = BusinessCentralExportReader.Read(file);
+
+        Assert.Empty(export.Rows);
+        Assert.Empty(export.Errors);
     }
 
     [Fact]
@@ -186,5 +202,36 @@ public class BusinessCentralExportReaderTests
         workbook.SaveAs(stream);
         stream.Position = 0;
         return stream;
+    }
+
+    // ClosedXML saves a formula without its result, so the result Excel would have saved is written into the sheet XML by hand.
+    private static MemoryStream WithSavedFormulaValue(MemoryStream workbook, string cell, string savedValue)
+    {
+        var copy = new MemoryStream();
+        workbook.CopyTo(copy);
+
+        using (var zip = new ZipArchive(copy, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            var entry = zip.GetEntry("xl/worksheets/sheet1.xml")!;
+            string xml;
+            using (var reader = new StreamReader(entry.Open()))
+            {
+                xml = reader.ReadToEnd();
+            }
+
+            var cellStart = $"<x:c r=\"{cell}\" s=\"0\">";
+            Assert.Contains(cellStart, xml);
+            var cellIndex = xml.IndexOf(cellStart, StringComparison.Ordinal);
+            var formulaEnd = xml.IndexOf("</x:f>", cellIndex, StringComparison.Ordinal) + "</x:f>".Length;
+            xml = xml[..formulaEnd] + $"<x:v>{savedValue}</x:v>" + xml[formulaEnd..];
+            xml = xml.Replace(cellStart, $"<x:c r=\"{cell}\" s=\"0\" t=\"str\">");
+
+            entry.Delete();
+            using var writer = new StreamWriter(zip.CreateEntry("xl/worksheets/sheet1.xml").Open());
+            writer.Write(xml);
+        }
+
+        copy.Position = 0;
+        return copy;
     }
 }

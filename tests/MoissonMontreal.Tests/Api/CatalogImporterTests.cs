@@ -64,6 +64,24 @@ public class CatalogImporterTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Import_RowsWithTheSameCodeButDifferentNames_KeepTheLastValidRow()
+    {
+        var pepper = NewCode();
+
+        var report = await ImportAsync(
+            Row(2, pepper, name: "Poivron"),
+            Row(3, pepper, name: "Poivron rouge", unit: "KG"),
+            Row(4, pepper, name: ""));
+
+        Assert.Equal(1, report.Created);
+        Assert.Equal(4, Assert.Single(report.Errors).RowNumber);
+
+        await using var context = CreateContext();
+        var item = await context.CatalogItems.SingleAsync(i => i.BusinessCentralCode == pepper);
+        Assert.Equal(("Poivron rouge", "KG"), (item.Name, item.Unit));
+    }
+
+    [Fact]
     public async Task Import_UpdatesAnExistingItem_WhenItsValuesChanged()
     {
         var existing = TestCatalogItems.Create("Tomate");
