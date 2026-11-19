@@ -66,6 +66,19 @@ For example, 1 kg × $0.45 × 50 % = $0.225, which gives $0.23.
 
 This is what PostgreSQL's round() does. In .NET, use Math.Round(value, 2, MidpointRounding.AwayFromZero). The default Math.Round(value, 2) rounds half to even and would give $0.22.
 
+### Code
+
+- [DonationValue.cs](../../src/MoissonMontreal.Core/Pricing/DonationValue.cs) holds the formula and the rounding rule above. It does not use the database.
+- [DonationValueService.cs](../../src/MoissonMontreal.Api/Pricing/DonationValueService.cs) values one donated food item. It takes the price of its catalog item in effect on the donation date, and the percentage of the quality class of the donation, not the one of the catalog item. When no percentage is given, the default percentage of the class is used, and a percentage outside the range of the class is refused.
+- The result lists the quantity, unit, unit price, the date that price started to apply, the quality class, the percentage and the value, so the calculation can be shown line by line and copied onto a receipt.
+
+The value is never guessed. The calculation is refused with a clear error when the food item is not matched to a catalog item, when it has no price on the donation date, or when its unit differs from the unit of the catalog item. Units are compared without regard to upper or lower case, so kg and KG are the same.
+
+Still to confirm with Moisson Montréal:
+
+- How the percentage of a class B item is chosen (see [quality-classes.md](quality-classes.md)). Until then, the default of the class is used unless a percentage is given.
+- What to do when the unit of a donation differs from the unit of its price (issue #28). Until then, the calculation is refused.
+
 ## Dates and time zones
 
 receipt_date is the date to use for the tax year and on the printed receipt. The database sets it to the current date in Montreal time. A receipt made on December 31 at 8 p.m. in Montreal is dated December 31, even though it is already January 1 in UTC.
