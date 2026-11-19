@@ -84,6 +84,28 @@ public class CatalogImporterTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Import_KeepsTheCategoryAndQualityClass_OfAnExistingItem()
+    {
+        var existing = TestCatalogItems.Create("Brocoli");
+        existing.Category = "Fruits et légumes";
+        existing.QualityClassCode = "B";
+        await using (var setup = CreateContext())
+        {
+            setup.CatalogItems.Add(existing);
+            await setup.SaveChangesAsync();
+        }
+
+        var report = await ImportAsync(Row(2, existing.BusinessCentralCode, name: "Brocoli", unit: "kg", category: "To classify", quality: "A"));
+
+        Assert.Equal((0, 0, 1), (report.Created, report.Updated, report.Unchanged));
+
+        await using var context = CreateContext();
+        var item = await context.CatalogItems.SingleAsync(i => i.Id == existing.Id);
+        Assert.Equal(("Fruits et légumes", "B"), (item.Category, item.QualityClassCode));
+        Assert.Null(item.UpdatedAt);
+    }
+
+    [Fact]
     public async Task Import_ReportsAnInvalidRow_AndImportsTheOthers()
     {
         var lime = NewCode();

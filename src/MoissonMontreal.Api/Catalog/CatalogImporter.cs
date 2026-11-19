@@ -10,6 +10,8 @@ namespace MoissonMontreal.Api.Catalog;
 /// Saves the rows of a Business Central export to the food catalog.
 /// A row whose Business Central code is new creates a catalog item, and a row whose code already exists updates that item,
 /// so importing the same file twice does not create duplicates. Invalid rows are reported and do not stop the others.
+/// An update only changes the name and the unit, which come from Business Central. The category and the quality class
+/// are only set when an item is created, so the corrections Moisson Montréal makes by hand are kept on the next import.
 /// </summary>
 /// <param name="db">Database context of the request.</param>
 public class CatalogImporter(MoissonDbContext db)
@@ -64,15 +66,20 @@ public class CatalogImporter(MoissonDbContext db)
         {
             if (!itemsByCode.TryGetValue(fields.BusinessCentralCode, out var item))
             {
-                item = new CatalogItem { BusinessCentralCode = fields.BusinessCentralCode };
-                CopyFields(fields, item);
+                item = new CatalogItem
+                {
+                    BusinessCentralCode = fields.BusinessCentralCode,
+                    Category = fields.Category,
+                    QualityClassCode = fields.QualityClass,
+                };
+                CopyBusinessCentralFields(fields, item);
                 db.CatalogItems.Add(item);
                 itemsByCode[fields.BusinessCentralCode] = item;
                 createdCodes.Add(fields.BusinessCentralCode);
             }
             else if (HasChanges(fields, item))
             {
-                CopyFields(fields, item);
+                CopyBusinessCentralFields(fields, item);
 
                 // An item created earlier in this same file is still new, so it is counted as created only.
                 if (existingCodes.Contains(fields.BusinessCentralCode))
@@ -93,28 +100,25 @@ public class CatalogImporter(MoissonDbContext db)
     }
 
     /// <summary>
-    /// Tells whether the values of a row differ from those already stored on a catalog item.
+    /// Tells whether the name or the unit of a row differ from those stored on a catalog item.
+    /// The category and the quality class are not compared, since an import never changes them on an existing item.
     /// </summary>
     /// <param name="fields">Validated values of the row.</param>
     /// <param name="item">Catalog item with the same Business Central code.</param>
-    /// <returns>True if at least one value is different.</returns>
+    /// <returns>True if the name or the unit is different.</returns>
     private static bool HasChanges(CatalogItemFields fields, CatalogItem item) =>
         item.Name != fields.Name
-        || item.Category != fields.Category
-        || item.Unit != fields.Unit
-        || item.QualityClassCode != fields.QualityClass;
+        || item.Unit != fields.Unit;
 
     /// <summary>
-    /// Copies the values of a row onto a catalog item. The Business Central code is not copied, since it is what matched the two.
+    /// Copies the values that come from Business Central, the name and the unit, onto a catalog item.
     /// </summary>
     /// <param name="fields">Validated values of the row.</param>
     /// <param name="item">Catalog item to fill.</param>
-    private static void CopyFields(CatalogItemFields fields, CatalogItem item)
+    private static void CopyBusinessCentralFields(CatalogItemFields fields, CatalogItem item)
     {
         item.Name = fields.Name;
-        item.Category = fields.Category;
         item.Unit = fields.Unit;
-        item.QualityClassCode = fields.QualityClass;
     }
 
     /// <summary>
