@@ -91,11 +91,36 @@ public class DonationValueServiceTests(PostgresFixture postgres) : IClassFixture
         Assert.Equal(50.00m, detail.Value);
     }
 
+    [Fact]
+    public async Task Calculate_AcceptsTheSameUnit_WithSpacesAround()
+    {
+        var bread = await AddBreadAsync();
+        var donation = await AddDonationAsync(bread, 12.50m, " kg ", November15, "A");
+
+        var detail = await CalculateAsync(donation);
+
+        // 12.50 kg × $4.00 × 100 % = $50.00
+        Assert.Equal(50.00m, detail.Value);
+    }
+
+    [Fact]
+    public async Task Calculate_ExplainsTheAllowedRange_WhenThePercentageIsRefused()
+    {
+        var bread = await AddBreadAsync();
+        var donation = await AddDonationAsync(bread, 12.50m, "kg", November15, "B");
+
+        var e = await Assert.ThrowsAsync<QualityPercentNotAllowedException>(() => CalculateAsync(donation, qualityPercent: 80m));
+
+        Assert.Equal((50m, 75m), (e.MinPercentage, e.MaxPercentage));
+        Assert.Equal("A quality percentage of 80 % is not allowed for class B, which allows 50.00 % to 75.00 %.", e.Message);
+    }
+
     [Theory]
     [InlineData("B", 49.99)]
     [InlineData("B", 75.01)]
     [InlineData("B", 80)]
     [InlineData("A", 75)]
+    [InlineData("C", 10)]
     public async Task Calculate_Throws_WhenTheChosenPercentageIsOutsideTheRangeOfTheClass(string quality, decimal qualityPercent)
     {
         var bread = await AddBreadAsync();
