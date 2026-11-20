@@ -14,7 +14,7 @@ public class BusinessCentralExportReaderTests
         ["Type", "N°", "Withholding Tax Prod. Post. Group", "Description", "Code d'emplacement", "Quantité", "Code d’unité de mesure", "Qualité du test"];
 
     [Fact]
-    public void Read_TurnsEachArticleLineIntoARow_WithTheDefaultCategoryAndQualityClass()
+    public void Read_TurnsEachArticleLineIntoARow_WithTheDefaultCategoryAndNoQualityClass()
     {
         using var file = BuildExport(
             ["Article", "1000094", "", "Citron lime", "CDL", 48, "CA", "Bon"],
@@ -25,8 +25,8 @@ public class BusinessCentralExportReaderTests
         Assert.Empty(export.Errors);
         Assert.Equal(
             [
-                new CatalogImportRow(2, new CatalogItemRequest("Citron lime", "To classify", "1000094", "CA", "A")),
-                new CatalogImportRow(3, new CatalogItemRequest("APS NON TRIÉ", "To classify", "1000769", "KG", "A")),
+                new CatalogImportRow(2, new CatalogItemRequest("Citron lime", "To classify", "1000094", "CA", null)),
+                new CatalogImportRow(3, new CatalogItemRequest("APS NON TRIÉ", "To classify", "1000769", "KG", null)),
             ],
             export.Rows);
     }

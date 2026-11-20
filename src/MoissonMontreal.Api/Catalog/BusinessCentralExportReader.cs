@@ -23,10 +23,6 @@ public static class BusinessCentralExportReader
     /// </summary>
     public const string DefaultCategory = "To classify";
 
-    /// <summary>
-    /// Quality class given to a new catalog item, since the export has no quality class. Moisson Montréal corrects it by hand.
-    /// </summary>
-    public const string DefaultQualityClass = "A";
 
     /// <summary>
     /// Value of the Type column on a line that is a food item. Other lines, such as comments, are not imported.
@@ -102,7 +98,8 @@ public static class BusinessCentralExportReader
                 continue;
             }
 
-            var item = new CatalogItemRequest(name, DefaultCategory, code, unit, DefaultQualityClass);
+            // The export has no quality class. It stays empty until someone picks it, so a forgotten default never values a receipt.
+            var item = new CatalogItemRequest(name, DefaultCategory, code, unit, QualityClass: null);
             rows.Add(new CatalogImportRow(rowNumber, item));
         }
 

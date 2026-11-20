@@ -37,6 +37,21 @@ public class CatalogImporterTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Import_CreatesTheItemWithoutQualityClass_WhenTheRowHasNone()
+    {
+        var pepper = NewCode();
+
+        var report = await ImportAsync(Row(2, pepper, name: "Poivron", quality: null));
+
+        Assert.Equal(1, report.Created);
+        Assert.Empty(report.Errors);
+
+        await using var context = CreateContext();
+        var item = await context.CatalogItems.SingleAsync(i => i.BusinessCentralCode == pepper);
+        Assert.Equal(("To classify", null), (item.Category, item.QualityClassCode));
+    }
+
+    [Fact]
     public async Task Import_SameFileTwice_DoesNotCreateDuplicates()
     {
         var lime = NewCode();
@@ -158,7 +173,7 @@ public class CatalogImporterTests(PostgresFixture postgres) : IClassFixture<Post
             await setup.SaveChangesAsync();
         }
 
-        var report = await ImportAsync(Row(2, existing.BusinessCentralCode, name: "Brocoli", unit: "kg", category: "To classify", quality: "A"));
+        var report = await ImportAsync(Row(2, existing.BusinessCentralCode, name: "Brocoli", unit: "kg", category: "To classify", quality: null));
 
         Assert.Equal((0, 0, 1), (report.Created, report.Updated, report.Unchanged));
 
@@ -247,7 +262,7 @@ public class CatalogImporterTests(PostgresFixture postgres) : IClassFixture<Post
         string code,
         string name = "Poivron",
         string unit = "CA",
-        string quality = "A",
+        string? quality = "A",
         string category = "To classify") =>
         new(rowNumber, new CatalogItemRequest(name, category, code, unit, quality));
 

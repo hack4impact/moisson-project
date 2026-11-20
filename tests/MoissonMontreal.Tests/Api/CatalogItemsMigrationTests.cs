@@ -50,7 +50,7 @@ public class CatalogItemsMigrationTests(PostgresFixture postgres) : IClassFixtur
         Assert.Equal(seed.Code, saved.BusinessCentralCode);
         Assert.Equal("kg", saved.Unit);
         Assert.Equal("A", saved.QualityClassCode);
-        Assert.Equal("A", saved.QualityClass.Code);
+        Assert.Equal("A", saved.QualityClass?.Code);
         Assert.Null(saved.UpdatedAt);
     }
 

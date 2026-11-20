@@ -13,6 +13,7 @@ namespace MoissonMontreal.Api.Catalog;
 /// An update only changes the name, which comes from Business Central. The unit, the category and the quality class are only set
 /// when an item is created: prices are per unit, so changing the unit would silently change the meaning of every price of the item,
 /// and the category and quality class are corrected by hand by Moisson Montréal. A row whose unit differs from the item's is reported.
+/// A row may have no quality class: the item is then created with an empty class, which someone picks later, so no value is guessed.
 /// </summary>
 /// <param name="db">Database context of the request.</param>
 public class CatalogImporter(MoissonDbContext db)
@@ -40,18 +41,18 @@ public class CatalogImporter(MoissonDbContext db)
 
         foreach (var row in rows)
         {
-            if (!CatalogItemValidator.TryNormalize(row.Item, out var fields, out var fieldErrors))
+            if (!CatalogItemValidator.TryNormalize(row.Item, out var fields, out var fieldErrors, qualityClassRequired: false))
             {
                 errors.Add(new CatalogImportError(row.RowNumber, fields.BusinessCentralCode, JoinMessages(fieldErrors)));
                 continue;
             }
 
-            if (!qualityClasses.Contains(fields.QualityClass))
+            if (fields.QualityClass is { } qualityClass && !qualityClasses.Contains(qualityClass))
             {
                 errors.Add(new CatalogImportError(
                     row.RowNumber,
                     fields.BusinessCentralCode,
-                    $"Quality class {fields.QualityClass} does not exist."));
+                    $"Quality class {qualityClass} does not exist."));
                 continue;
             }
 

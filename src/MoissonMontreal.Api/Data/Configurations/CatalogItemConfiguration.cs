@@ -57,6 +57,7 @@ public class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogItem>
         builder.HasOne(c => c.QualityClass)
             .WithMany()
             .HasForeignKey(c => c.QualityClassCode)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName(QualityClassForeignKey);
 
