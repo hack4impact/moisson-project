@@ -70,7 +70,7 @@ public class CatalogImporterTests(PostgresFixture postgres) : IClassFixture<Post
 
         var report = await ImportAsync(
             Row(2, pepper, name: "Poivron"),
-            Row(3, pepper, name: "Poivron rouge", unit: "KG"),
+            Row(3, pepper, name: "Poivron rouge"),
             Row(4, pepper, name: ""));
 
         Assert.Equal(1, report.Created);
@@ -78,11 +78,31 @@ public class CatalogImporterTests(PostgresFixture postgres) : IClassFixture<Post
 
         await using var context = CreateContext();
         var item = await context.CatalogItems.SingleAsync(i => i.BusinessCentralCode == pepper);
-        Assert.Equal(("Poivron rouge", "KG"), (item.Name, item.Unit));
+        Assert.Equal(("Poivron rouge", "CA"), (item.Name, item.Unit));
     }
 
     [Fact]
-    public async Task Import_UpdatesAnExistingItem_WhenItsValuesChanged()
+    public async Task Import_RowsWithTheSameCodeButAnotherUnit_KeepTheUnitOfTheFirstRow_AndReportTheOthers()
+    {
+        var pepper = NewCode();
+
+        var report = await ImportAsync(
+            Row(2, pepper, name: "Poivron", unit: "CA"),
+            Row(3, pepper, name: "Poivron", unit: "KG"),
+            Row(4, pepper, name: "Poivron", unit: "ca"));
+
+        Assert.Equal(1, report.Created);
+        Assert.Equal(
+            new CatalogImportError(3, pepper, "The unit KG differs from the catalog unit CA. Prices are per unit, so the item was not changed."),
+            Assert.Single(report.Errors));
+
+        await using var context = CreateContext();
+        var item = await context.CatalogItems.SingleAsync(i => i.BusinessCentralCode == pepper);
+        Assert.Equal("CA", item.Unit);
+    }
+
+    [Fact]
+    public async Task Import_NeverChangesTheUnitOfAnExistingItem_AndReportsTheRow()
     {
         var existing = TestCatalogItems.Create("Tomate");
         await using (var setup = CreateContext())
@@ -91,13 +111,38 @@ public class CatalogImporterTests(PostgresFixture postgres) : IClassFixture<Post
             await setup.SaveChangesAsync();
         }
 
-        var report = await ImportAsync(Row(2, existing.BusinessCentralCode, name: "Tomate cerise", unit: "KG"));
+        var report = await ImportAsync(Row(2, existing.BusinessCentralCode, name: "Tomate cerise", unit: "CA"));
 
-        Assert.Equal((0, 1, 0), (report.Created, report.Updated, report.Unchanged));
+        Assert.Equal((0, 0, 1), (report.Created, report.Updated, report.Unchanged));
+        Assert.Equal(
+            new CatalogImportError(2, existing.BusinessCentralCode, "The unit CA differs from the catalog unit kg. Prices are per unit, so the item was not changed."),
+            Assert.Single(report.Errors));
 
         await using var context = CreateContext();
         var item = await context.CatalogItems.SingleAsync(i => i.Id == existing.Id);
-        Assert.Equal(("Tomate cerise", "KG"), (item.Name, item.Unit));
+        Assert.Equal(("Tomate", "kg"), (item.Name, item.Unit));
+        Assert.Null(item.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task Import_UpdatesTheNameOfAnExistingItem_AndKeepsTheSpellingOfItsUnit()
+    {
+        var existing = TestCatalogItems.Create("Tomate");
+        await using (var setup = CreateContext())
+        {
+            setup.CatalogItems.Add(existing);
+            await setup.SaveChangesAsync();
+        }
+
+        // KG and kg are the same unit, so only the name changes and the unit keeps its spelling.
+        var report = await ImportAsync(Row(2, existing.BusinessCentralCode, name: "Tomate cerise", unit: "KG"));
+
+        Assert.Equal((0, 1, 0), (report.Created, report.Updated, report.Unchanged));
+        Assert.Empty(report.Errors);
+
+        await using var context = CreateContext();
+        var item = await context.CatalogItems.SingleAsync(i => i.Id == existing.Id);
+        Assert.Equal(("Tomate cerise", "kg"), (item.Name, item.Unit));
         Assert.NotNull(item.UpdatedAt);
     }
 

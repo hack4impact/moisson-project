@@ -52,7 +52,8 @@ List, create and edit are available at `api/catalog-items`. Any signed-in employ
 
 - The reader follows the purchase order (PO) export format, the only real Business Central export available so far: a `Lignes` sheet with the columns `Type`, `N°`, `Description` and `Code d'unité de mesure`. Columns are found by name, so their order does not matter. Only `Article` lines are imported. If the catalog later comes from another export, such as the Item list, the reader and this section must be updated.
 - A new code creates an item. Since the export has no category or quality class, the item gets the category `To classify` and the quality class A, to be corrected by hand.
-- A known code only updates the name and the unit. The category and the quality class are never changed by an import, so manual corrections are kept.
+- A known code only updates the name. The category and the quality class are never changed by an import, so manual corrections are kept.
+- The unit is never changed by an import either. Prices are per unit, so changing the unit of an item would silently change the meaning of all its prices. A line whose unit differs from the item's unit is reported, and the item is left unchanged. Units are compared without regard to upper or lower case, so kg and KG are the same.
 - Importing the same file again creates no duplicates.
 - A line that cannot be imported is listed in the report with its row number and the reason. The other lines are still imported.
 - A file that cannot be read at all (not an .xlsx file, no `Lignes` sheet, a missing column, too large) is refused with a message that explains why.

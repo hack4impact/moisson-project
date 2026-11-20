@@ -10,15 +10,17 @@ namespace MoissonMontreal.Api.Catalog;
 /// Saves the rows of a Business Central export to the food catalog.
 /// A row whose Business Central code is new creates a catalog item, and a row whose code already exists updates that item,
 /// so importing the same file twice does not create duplicates. Invalid rows are reported and do not stop the others.
-/// An update only changes the name and the unit, which come from Business Central. The category and the quality class
-/// are only set when an item is created, so the corrections Moisson Montréal makes by hand are kept on the next import.
+/// An update only changes the name, which comes from Business Central. The unit, the category and the quality class are only set
+/// when an item is created: prices are per unit, so changing the unit would silently change the meaning of every price of the item,
+/// and the category and quality class are corrected by hand by Moisson Montréal. A row whose unit differs from the item's is reported.
 /// </summary>
 /// <param name="db">Database context of the request.</param>
 public class CatalogImporter(MoissonDbContext db)
 {
     /// <summary>
     /// Validates every row, then creates or updates the matching catalog items and saves them all at once.
-    /// When several rows share a Business Central code, they all point to the same catalog item, and the last valid row gives its values.
+    /// When several rows share a Business Central code, they all point to the same catalog item: the first valid row sets the unit
+    /// of a new item, and the last valid row gives the name.
     /// </summary>
     /// <param name="rows">Rows read from the export file, in file order.</param>
     /// <param name="cancellationToken">Token that cancels the database queries.</param>
@@ -62,24 +64,32 @@ public class CatalogImporter(MoissonDbContext db)
         var createdCodes = new HashSet<string>();
         var updatedCodes = new HashSet<string>();
 
-        foreach (var (_, fields) in validRows)
+        foreach (var (rowNumber, fields) in validRows)
         {
             if (!itemsByCode.TryGetValue(fields.BusinessCentralCode, out var item))
             {
                 item = new CatalogItem
                 {
                     BusinessCentralCode = fields.BusinessCentralCode,
+                    Name = fields.Name,
+                    Unit = fields.Unit,
                     Category = fields.Category,
                     QualityClassCode = fields.QualityClass,
                 };
-                CopyBusinessCentralFields(fields, item);
                 db.CatalogItems.Add(item);
                 itemsByCode[fields.BusinessCentralCode] = item;
                 createdCodes.Add(fields.BusinessCentralCode);
             }
-            else if (HasChanges(fields, item))
+            else if (!IsSameUnit(fields.Unit, item.Unit))
             {
-                CopyBusinessCentralFields(fields, item);
+                errors.Add(new CatalogImportError(
+                    rowNumber,
+                    fields.BusinessCentralCode,
+                    $"The unit {fields.Unit} differs from the catalog unit {item.Unit}. Prices are per unit, so the item was not changed."));
+            }
+            else if (item.Name != fields.Name)
+            {
+                item.Name = fields.Name;
 
                 // An item created earlier in this same file is still new, so it is counted as created only.
                 if (existingCodes.Contains(fields.BusinessCentralCode))
@@ -96,30 +106,17 @@ public class CatalogImporter(MoissonDbContext db)
             Created: createdCodes.Count,
             Updated: updatedCodes.Count,
             Unchanged: existingCodes.Count - updatedCodes.Count,
-            Errors: errors);
+            Errors: errors.OrderBy(error => error.RowNumber).ToList());
     }
 
     /// <summary>
-    /// Tells whether the name or the unit of a row differ from those stored on a catalog item.
-    /// The category and the quality class are not compared, since an import never changes them on an existing item.
+    /// Tells whether two units are the same, ignoring spaces around them and upper or lower case, so kg and KG match.
     /// </summary>
-    /// <param name="fields">Validated values of the row.</param>
-    /// <param name="item">Catalog item with the same Business Central code.</param>
-    /// <returns>True if the name or the unit is different.</returns>
-    private static bool HasChanges(CatalogItemFields fields, CatalogItem item) =>
-        item.Name != fields.Name
-        || item.Unit != fields.Unit;
-
-    /// <summary>
-    /// Copies the values that come from Business Central, the name and the unit, onto a catalog item.
-    /// </summary>
-    /// <param name="fields">Validated values of the row.</param>
-    /// <param name="item">Catalog item to fill.</param>
-    private static void CopyBusinessCentralFields(CatalogItemFields fields, CatalogItem item)
-    {
-        item.Name = fields.Name;
-        item.Unit = fields.Unit;
-    }
+    /// <param name="rowUnit">Unit read on the row.</param>
+    /// <param name="itemUnit">Unit of the catalog item, which is the unit of its prices.</param>
+    /// <returns>True if both are the same unit.</returns>
+    private static bool IsSameUnit(string rowUnit, string itemUnit) =>
+        string.Equals(rowUnit.Trim(), itemUnit.Trim(), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Joins the validation messages of a row into one sentence for the report.
