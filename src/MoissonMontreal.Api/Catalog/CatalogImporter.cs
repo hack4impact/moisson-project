@@ -25,6 +25,9 @@ public class CatalogImporter(MoissonDbContext db)
     /// <param name="rows">Rows read from the export file, in file order.</param>
     /// <param name="cancellationToken">Token that cancels the database queries.</param>
     /// <returns>The number of items created, updated and unchanged, and the refused rows.</returns>
+    /// <exception cref="CatalogImportConflictException">
+    /// Another request added an item with one of the file's codes at the same time. Nothing is saved, and the import can be run again.
+    /// </exception>
     public async Task<CatalogImportReport> ImportAsync(IReadOnlyList<CatalogImportRow> rows, CancellationToken cancellationToken = default)
     {
         var errors = new List<CatalogImportError>();
@@ -100,7 +103,14 @@ public class CatalogImporter(MoissonDbContext db)
             }
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (CatalogSaveErrors.IsBusinessCentralCodeConflict(exception))
+        {
+            throw new CatalogImportConflictException(exception);
+        }
 
         return new CatalogImportReport(
             Created: createdCodes.Count,

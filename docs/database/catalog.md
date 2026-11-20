@@ -57,6 +57,7 @@ List, create and edit are available at `api/catalog-items`. Any signed-in employ
 - Importing the same file again creates no duplicates.
 - A line that cannot be imported is listed in the report with its row number and the reason. The other lines are still imported.
 - A file that cannot be read at all (not an .xlsx file, no `Lignes` sheet, a missing column, too large) is refused with a message that explains why.
+- If another request adds an item with one of the file's codes at the same time, the import returns a conflict, like creating an item with a code already used. Nothing from the file is saved, and importing the file again works.
 
 Code: [CatalogImportController.cs](../../src/MoissonMontreal.Api/Controllers/CatalogImportController.cs), [BusinessCentralExportReader.cs](../../src/MoissonMontreal.Api/Catalog/BusinessCentralExportReader.cs) and [CatalogImporter.cs](../../src/MoissonMontreal.Api/Catalog/CatalogImporter.cs).
 

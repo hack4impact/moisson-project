@@ -41,6 +41,7 @@ public class CatalogImportController(CatalogImporter importer) : ControllerBase
     /// <returns>
     /// 200 with the number of items created, updated and unchanged, and the refused lines.
     /// 400 when no file is sent, or when the file is too large, is not an .xlsx file, or misses a required sheet or column.
+    /// 409 when another request added an item with one of the file's codes at the same time; nothing is saved and the file can be imported again.
     /// </returns>
     [HttpPost]
     [Authorize(Policy = Permissions.ManagePriceGrid)]
@@ -75,7 +76,20 @@ public class CatalogImportController(CatalogImporter importer) : ControllerBase
             return FileProblem(exception.Message);
         }
 
-        var report = await importer.ImportAsync(export.Rows, cancellationToken);
+        CatalogImportReport report;
+        try
+        {
+            report = await importer.ImportAsync(export.Rows, cancellationToken);
+        }
+        catch (CatalogImportConflictException exception)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Business Central code already used",
+                Detail = exception.Message,
+            });
+        }
 
         var errors = export.Errors
             .Concat(report.Errors)

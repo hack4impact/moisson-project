@@ -169,6 +169,27 @@ public class CatalogImporterTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Import_Throws_WhenTheSameCodeIsSavedMeanwhile_AndSavesNothing_ThenWorksWhenImportedAgain()
+    {
+        var pepper = NewCode();
+        var lime = NewCode();
+        CatalogImportRow[] file = [Row(2, pepper, name: "Poivron"), Row(3, lime, name: "Citron lime")];
+
+        await using (var context = CreateContext(new SameCodeSavedMeanwhile(postgres.ConnectionString, pepper)))
+        {
+            await Assert.ThrowsAsync<CatalogImportConflictException>(() => new CatalogImporter(context).ImportAsync(file));
+        }
+
+        // Only the item saved by the other request exists: nothing from the file was saved.
+        Assert.Equal((1, 0), (await CountAsync(pepper), await CountAsync(lime)));
+
+        // Importing again works: the code now exists, so its line becomes an update, and the other line is created.
+        var report = await ImportAsync(file);
+        Assert.Equal((1, 1, 0), (report.Created, report.Updated, report.Unchanged));
+        Assert.Equal((1, 1), (await CountAsync(pepper), await CountAsync(lime)));
+    }
+
+    [Fact]
     public async Task Import_ReportsAnInvalidRow_AndImportsTheOthers()
     {
         var lime = NewCode();
@@ -241,6 +262,9 @@ public class CatalogImporterTests(PostgresFixture postgres) : IClassFixture<Post
         await using var context = CreateContext();
         return await context.CatalogItems.CountAsync(item => item.BusinessCentralCode == code);
     }
+
+    private MoissonDbContext CreateContext(SameCodeSavedMeanwhile interceptor) =>
+        new(new DbContextOptionsBuilder<MoissonDbContext>().UseNpgsql(postgres.ConnectionString).AddInterceptors(interceptor).Options);
 
     private MoissonDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<MoissonDbContext>().UseNpgsql(postgres.ConnectionString).Options);

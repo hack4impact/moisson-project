@@ -3,7 +3,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using MoissonMontreal.Api.Controllers;
 using MoissonMontreal.Api.Data;
 using MoissonMontreal.Core.Authorization;
@@ -158,6 +160,29 @@ public class CatalogImportEndpointTests(CatalogApiFactory factory) : IClassFixtu
         var response = await client.PostAsync(Route, Form(tooLarge));
 
         await AssertFileProblemAsync(response, "The file is too large. The limit is 10 MB.");
+    }
+
+    [Fact]
+    public async Task Import_ReturnsConflict_WhenTheSameCodeIsSavedMeanwhile()
+    {
+        var interceptor = new SameCodeSavedMeanwhile(factory.ConnectionString, "IMP-409");
+        await factory.SignInAsAsync(RoleCodes.Admin);
+        using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.ConfigureDbContext<MoissonDbContext>(options => options.AddInterceptors(interceptor))));
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateToken());
+
+        var response = await client.PostAsync(Route, Form(BuildExport(
+            ["Article", "IMP-409", "Poivron", "CA"],
+            ["Article", "IMP-409-OTHER", "Citron lime", "CA"])));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.Equal("Business Central code already used", problem!.Title);
+        Assert.Equal(
+            "Another catalog item with a Business Central code from this file was saved at the same time. Nothing was imported. Import the file again.",
+            problem.Detail);
+        Assert.Equal(0, await CountAsync("IMP-409-OTHER"));
     }
 
     private static async Task AssertFileProblemAsync(HttpResponseMessage response, string expectedDetail)
