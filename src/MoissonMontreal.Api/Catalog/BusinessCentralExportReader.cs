@@ -54,7 +54,8 @@ public static class BusinessCentralExportReader
     private const string UnitHeader = "Code d'unité de mesure";
 
     /// <summary>
-    /// Reads every line of the export. Empty lines are skipped. Lines that are not articles are reported, not ignored.
+    /// Reads every line of the export. Empty lines are skipped. Lines that are not articles, and lines with an Excel error
+    /// such as #REF! in a required cell, are reported, not ignored.
     /// </summary>
     /// <param name="file">Content of the .xlsx file.</param>
     /// <returns>The article lines as catalog rows, and the lines that could not be read.</returns>
@@ -80,6 +81,14 @@ public static class BusinessCentralExportReader
             var code = ReadText(line.Cell(columns.Code));
             var name = ReadText(line.Cell(columns.Name));
             var unit = ReadText(line.Cell(columns.Unit));
+
+            var excelErrors = FindExcelErrors(line, columns);
+            if (excelErrors.Count > 0)
+            {
+                var shownCode = SavedValue(line.Cell(columns.Code)).IsError ? string.Empty : code;
+                errors.Add(new CatalogImportError(rowNumber, shownCode, string.Join(" ", excelErrors)));
+                continue;
+            }
 
             if (type.Length == 0 && code.Length == 0 && name.Length == 0 && unit.Length == 0)
             {
@@ -159,10 +168,38 @@ public static class BusinessCentralExportReader
     /// </summary>
     /// <param name="cell">Cell to read.</param>
     /// <returns>The text of the cell without surrounding spaces, or an empty string for an empty cell.</returns>
-    private static string ReadText(IXLCell cell)
+    private static string ReadText(IXLCell cell) =>
+        SavedValue(cell).ToString(CultureInfo.InvariantCulture).Trim();
+
+    /// <summary>
+    /// Returns the value saved in a cell. For a formula cell, it is the result Excel saved with the file, and the formula is never calculated.
+    /// </summary>
+    /// <param name="cell">Cell to read.</param>
+    /// <returns>The saved value, which can be text, a number, a date, empty or an Excel error.</returns>
+    private static XLCellValue SavedValue(IXLCell cell) => cell.HasFormula ? cell.CachedValue : cell.Value;
+
+    /// <summary>
+    /// Lists the required cells of a line that contain an Excel error, such as #REF! or #N/A, so the line is reported instead of
+    /// importing an item named after the error.
+    /// </summary>
+    /// <param name="line">Row of the sheet.</param>
+    /// <param name="columns">Column number of each required column.</param>
+    /// <returns>One message per cell with an error, in column order. Empty when no cell has an error.</returns>
+    private static List<string> FindExcelErrors(IXLRow line, ExportColumns columns)
     {
-        var value = cell.HasFormula ? cell.CachedValue : cell.Value;
-        return value.ToString(CultureInfo.InvariantCulture).Trim();
+        (string Header, int Column)[] requiredCells =
+        [
+            (TypeHeader, columns.Type),
+            (CodeHeader, columns.Code),
+            (NameHeader, columns.Name),
+            (UnitHeader, columns.Unit),
+        ];
+
+        return requiredCells
+            .Select(cell => (cell.Header, Value: SavedValue(line.Cell(cell.Column))))
+            .Where(cell => cell.Value.IsError)
+            .Select(cell => $"The {cell.Header} cell contains the Excel error {cell.Value.ToString(CultureInfo.InvariantCulture)}.")
+            .ToList();
     }
 
     /// <summary>

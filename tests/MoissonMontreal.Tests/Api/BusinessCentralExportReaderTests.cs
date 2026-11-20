@@ -124,6 +124,55 @@ public class BusinessCentralExportReaderTests
     }
 
     [Fact]
+    public void Read_ReportsALineWithAnExcelErrorInTheName_AndReadsTheOthers()
+    {
+        using var file = BuildExport(
+            ["Article", "1000094", "", "Citron lime", "CDL", 48, "CA", "Bon"],
+            ["Article", "1000112", "", XLError.CellReference, "CDL", 100, "CA", "Moyen"],
+            ["Article", "1000106", "", "Brocoli", "CDL", 32, "CA", "Bon"]);
+
+        var export = BusinessCentralExportReader.Read(file);
+
+        Assert.Equal([2, 4], export.Rows.Select(row => row.RowNumber));
+        Assert.Equal(
+            new CatalogImportError(3, "1000112", "The Description cell contains the Excel error #REF!."),
+            Assert.Single(export.Errors));
+    }
+
+    [Fact]
+    public void Read_ReportsEveryExcelErrorOfALine_AndHidesACodeThatIsAnError()
+    {
+        using var file = BuildExport(["Article", XLError.NoValueAvailable, "", "Poivron", "CDL", 100, XLError.DivisionByZero, "Moyen"]);
+
+        var export = BusinessCentralExportReader.Read(file);
+
+        Assert.Empty(export.Rows);
+        Assert.Equal(
+            new CatalogImportError(2, "", "The N° cell contains the Excel error #N/A. The Code d'unité de mesure cell contains the Excel error #DIV/0!."),
+            Assert.Single(export.Errors));
+    }
+
+    [Fact]
+    public void Read_ReportsAFormulaCell_WhoseSavedResultIsAnExcelError()
+    {
+        using var workbook = new XLWorkbook();
+        var sheet = AddLignesSheet(workbook);
+        sheet.Cell(2, 1).Value = "Article";
+        sheet.Cell(2, 2).Value = "1000094";
+        sheet.Cell(2, 4).FormulaA1 = "VLOOKUP(B2, Articles!A:B, 2, FALSE)";
+        sheet.Cell(2, 7).Value = "CA";
+        using var saved = Save(workbook);
+        using var file = WithSavedFormulaValue(saved, "D2", "#N/A", valueType: "e");
+
+        var export = BusinessCentralExportReader.Read(file);
+
+        Assert.Empty(export.Rows);
+        Assert.Equal(
+            new CatalogImportError(2, "1000094", "The Description cell contains the Excel error #N/A."),
+            Assert.Single(export.Errors));
+    }
+
+    [Fact]
     public void Read_ReturnsNoRowAndNoError_WhenTheSheetOnlyHasHeaders()
     {
         using var file = BuildExport();
@@ -205,7 +254,7 @@ public class BusinessCentralExportReaderTests
     }
 
     // ClosedXML saves a formula without its result, so the result Excel would have saved is written into the sheet XML by hand.
-    private static MemoryStream WithSavedFormulaValue(MemoryStream workbook, string cell, string savedValue)
+    private static MemoryStream WithSavedFormulaValue(MemoryStream workbook, string cell, string savedValue, string valueType = "str")
     {
         var copy = new MemoryStream();
         workbook.CopyTo(copy);
@@ -224,7 +273,7 @@ public class BusinessCentralExportReaderTests
             var cellIndex = xml.IndexOf(cellStart, StringComparison.Ordinal);
             var formulaEnd = xml.IndexOf("</x:f>", cellIndex, StringComparison.Ordinal) + "</x:f>".Length;
             xml = xml[..formulaEnd] + $"<x:v>{savedValue}</x:v>" + xml[formulaEnd..];
-            xml = xml.Replace(cellStart, $"<x:c r=\"{cell}\" s=\"0\" t=\"str\">");
+            xml = xml.Replace(cellStart, $"<x:c r=\"{cell}\" s=\"0\" t=\"{valueType}\">");
 
             entry.Delete();
             using var writer = new StreamWriter(zip.CreateEntry("xl/worksheets/sheet1.xml").Open());
