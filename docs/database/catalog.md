@@ -50,13 +50,14 @@ List, create and edit are available at `api/catalog-items`. Any signed-in employ
 
 `POST api/catalog-items/import` receives an Excel export of Business Central (a .xlsx file in a form field named `file`, 10 MB at most) and creates or updates catalog items by their Business Central code. Like creating an item, it requires the ManagePriceGrid permission.
 
-- The reader follows the purchase order (PO) export format, the only real Business Central export available so far: a `Lignes` sheet with the columns `Type`, `N°`, `Description` and `Code d'unité de mesure`. Columns are found by name, so their order does not matter. Only `Article` lines are imported. If the catalog later comes from another export, such as the Item list, the reader and this section must be updated.
+- The file is the item list exported from Business Central (Liste des articles): an `Articles` sheet with the columns `N°`, `Description`, `Type` and `Unité de mesure de base`. Columns are found by name, so their order does not matter, and the other columns are ignored. Only items of type `Inventaire` are imported. An item of another type is reported.
+- The costs in the export (`Coût unitaire`) are not imported. They are an internal value, not the fair market value a receipt needs, and prices are entered in the price grid instead.
 - A new code creates an item. Since the export has no category, the item gets the category `To classify`, to be corrected by hand. It has no quality class either, and its class stays empty until someone picks it: no default is given, because a forgotten default would put the wrong value on a receipt.
 - A known code only updates the name. The category and the quality class are never changed by an import, so manual corrections are kept.
 - The unit is never changed by an import either. Prices are per unit, so changing the unit of an item would silently change the meaning of all its prices. A line whose unit differs from the item's unit is reported, and the item is left unchanged. Units are compared without regard to upper or lower case, so kg and KG are the same.
 - Importing the same file again creates no duplicates.
 - A line that cannot be imported is listed in the report with its row number and the reason. The other lines are still imported.
-- A file that cannot be read at all (not an .xlsx file, no `Lignes` sheet, a missing column, too large) is refused with a message that explains why.
+- A file that cannot be read at all (not an .xlsx file, no `Articles` sheet, a missing column, too large) is refused with a message that explains why.
 - If another request adds an item with one of the file's codes at the same time, the import returns a conflict, like creating an item with a code already used. Nothing from the file is saved, and importing the file again works.
 
 Code: [CatalogImportController.cs](../../src/MoissonMontreal.Api/Controllers/CatalogImportController.cs), [BusinessCentralExportReader.cs](../../src/MoissonMontreal.Api/Catalog/BusinessCentralExportReader.cs) and [CatalogImporter.cs](../../src/MoissonMontreal.Api/Catalog/CatalogImporter.cs).

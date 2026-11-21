@@ -9,16 +9,16 @@ namespace MoissonMontreal.Tests.Api;
 
 public class BusinessCentralExportReaderTests
 {
-    // Same headers as a real PO export, including the curly apostrophe Business Central uses in the unit header.
+    // Headers of the real Business Central item list, in another order than the export: columns are found by name.
     private static readonly string[] Headers =
-        ["Type", "N°", "Withholding Tax Prod. Post. Group", "Description", "Code d'emplacement", "Quantité", "Code d’unité de mesure", "Qualité du test"];
+        ["Type", "N°", "Substituts existent", "Description", "Nomenclature d'assemblage", "Coût unitaire", "Unité de mesure de base", "Prix unitaire"];
 
     [Fact]
     public void Read_TurnsEachArticleLineIntoARow_WithTheDefaultCategoryAndNoQualityClass()
     {
         using var file = BuildExport(
-            ["Article", "1000094", "", "Citron lime", "CDL", 48, "CA", "Bon"],
-            ["Article", "1000769", "", "APS NON TRIÉ ", "CDL", 196, "KG", ""]);
+            ["Inventaire", "1000094", "", "Citron lime", "CDL", 48, "CA", "Bon"],
+            ["Inventaire", "1000769", "", "APS NON TRIÉ ", "CDL", 196, "KG", ""]);
 
         var export = BusinessCentralExportReader.Read(file);
 
@@ -34,7 +34,7 @@ public class BusinessCentralExportReaderTests
     [Fact]
     public void Read_KeepsANumericCode_AsText()
     {
-        using var file = BuildExport(["Article", 1000112, "", "Poivron", "CDL", 100, "CA", "Moyen"]);
+        using var file = BuildExport(["Inventaire", 1000112, "", "Poivron", "CDL", 100, "CA", "Moyen"]);
 
         var row = Assert.Single(BusinessCentralExportReader.Read(file).Rows);
 
@@ -45,15 +45,15 @@ public class BusinessCentralExportReaderTests
     public void Read_FindsColumnsByName_WhenTheyAreInAnotherOrder()
     {
         using var workbook = new XLWorkbook();
-        var sheet = workbook.AddWorksheet("Lignes");
-        sheet.Cell(1, 1).Value = "Code d'unité de mesure";
+        var sheet = workbook.AddWorksheet("Articles");
+        sheet.Cell(1, 1).Value = "Unité de mesure de base";
         sheet.Cell(1, 2).Value = "Description";
         sheet.Cell(1, 3).Value = "N°";
         sheet.Cell(1, 4).Value = "Type";
         sheet.Cell(2, 1).Value = "CA";
         sheet.Cell(2, 2).Value = "Tomate";
         sheet.Cell(2, 3).Value = "1000110";
-        sheet.Cell(2, 4).Value = "Article";
+        sheet.Cell(2, 4).Value = "Inventaire";
         using var file = Save(workbook);
 
         var row = Assert.Single(BusinessCentralExportReader.Read(file).Rows);
@@ -65,9 +65,9 @@ public class BusinessCentralExportReaderTests
     public void Read_SkipsEmptyLines_AndKeepsTheExcelRowNumbers()
     {
         using var file = BuildExport(
-            ["Article", "1000094", "", "Citron lime", "CDL", 48, "CA", "Bon"],
+            ["Inventaire", "1000094", "", "Citron lime", "CDL", 48, "CA", "Bon"],
             ["", "", "", "", "", "", "", ""],
-            ["Article", "1000106", "", "Brocoli", "CDL", 32, "CA", "Bon"]);
+            ["Inventaire", "1000106", "", "Brocoli", "CDL", 32, "CA", "Bon"]);
 
         var export = BusinessCentralExportReader.Read(file);
 
@@ -79,15 +79,15 @@ public class BusinessCentralExportReaderTests
     public void Read_ReportsALineThatIsNotAnArticle_AndReadsTheOthers()
     {
         using var file = BuildExport(
-            ["Article", "1000094", "", "Citron lime", "CDL", 48, "CA", "Bon"],
-            ["Commentaire", "", "", "Livraison en retard", "", "", "", ""],
-            ["Article", "1000106", "", "Brocoli", "CDL", 32, "CA", "Bon"]);
+            ["Inventaire", "1000094", "", "Citron lime", "CDL", 48, "CA", "Bon"],
+            ["Service", "", "", "Livraison", "", "", "", ""],
+            ["Inventaire", "1000106", "", "Brocoli", "CDL", 32, "CA", "Bon"]);
 
         var export = BusinessCentralExportReader.Read(file);
 
         Assert.Equal([2, 4], export.Rows.Select(row => row.RowNumber));
         Assert.Equal(
-            new CatalogImportError(3, "", "The line type is Commentaire, not Article, so it is not a food item."),
+            new CatalogImportError(3, "", "The item type is Service, not Inventaire, so it is not a food item."),
             Assert.Single(export.Errors));
     }
 
@@ -100,7 +100,7 @@ public class BusinessCentralExportReaderTests
 
         Assert.Empty(export.Rows);
         Assert.Equal(
-            new CatalogImportError(2, "1000094", "The line type is empty, not Article, so it is not a food item."),
+            new CatalogImportError(2, "1000094", "The item type is empty, not Inventaire, so it is not a food item."),
             Assert.Single(export.Errors));
     }
 
@@ -108,8 +108,8 @@ public class BusinessCentralExportReaderTests
     public void Read_ReadsTheSavedValue_OfAFormulaCell_WithoutCalculatingTheFormula()
     {
         using var workbook = new XLWorkbook();
-        var sheet = AddLignesSheet(workbook);
-        sheet.Cell(2, 1).Value = "Article";
+        var sheet = AddArticlesSheet(workbook);
+        sheet.Cell(2, 1).Value = "Inventaire";
         sheet.Cell(2, 2).Value = "1000094";
         sheet.Cell(2, 4).FormulaA1 = "\"Citron\" & \" lime\"";
         sheet.Cell(2, 7).Value = "CA";
@@ -127,9 +127,9 @@ public class BusinessCentralExportReaderTests
     public void Read_ReportsALineWithAnExcelErrorInTheName_AndReadsTheOthers()
     {
         using var file = BuildExport(
-            ["Article", "1000094", "", "Citron lime", "CDL", 48, "CA", "Bon"],
-            ["Article", "1000112", "", XLError.CellReference, "CDL", 100, "CA", "Moyen"],
-            ["Article", "1000106", "", "Brocoli", "CDL", 32, "CA", "Bon"]);
+            ["Inventaire", "1000094", "", "Citron lime", "CDL", 48, "CA", "Bon"],
+            ["Inventaire", "1000112", "", XLError.CellReference, "CDL", 100, "CA", "Moyen"],
+            ["Inventaire", "1000106", "", "Brocoli", "CDL", 32, "CA", "Bon"]);
 
         var export = BusinessCentralExportReader.Read(file);
 
@@ -142,13 +142,13 @@ public class BusinessCentralExportReaderTests
     [Fact]
     public void Read_ReportsEveryExcelErrorOfALine_AndHidesACodeThatIsAnError()
     {
-        using var file = BuildExport(["Article", XLError.NoValueAvailable, "", "Poivron", "CDL", 100, XLError.DivisionByZero, "Moyen"]);
+        using var file = BuildExport(["Inventaire", XLError.NoValueAvailable, "", "Poivron", "CDL", 100, XLError.DivisionByZero, "Moyen"]);
 
         var export = BusinessCentralExportReader.Read(file);
 
         Assert.Empty(export.Rows);
         Assert.Equal(
-            new CatalogImportError(2, "", "The N° cell contains the Excel error #N/A. The Code d'unité de mesure cell contains the Excel error #DIV/0!."),
+            new CatalogImportError(2, "", "The N° cell contains the Excel error #N/A. The Unité de mesure de base cell contains the Excel error #DIV/0!."),
             Assert.Single(export.Errors));
     }
 
@@ -156,8 +156,8 @@ public class BusinessCentralExportReaderTests
     public void Read_ReportsAFormulaCell_WhoseSavedResultIsAnExcelError()
     {
         using var workbook = new XLWorkbook();
-        var sheet = AddLignesSheet(workbook);
-        sheet.Cell(2, 1).Value = "Article";
+        var sheet = AddArticlesSheet(workbook);
+        sheet.Cell(2, 1).Value = "Inventaire";
         sheet.Cell(2, 2).Value = "1000094";
         sheet.Cell(2, 4).FormulaA1 = "VLOOKUP(B2, Articles!A:B, 2, FALSE)";
         sheet.Cell(2, 7).Value = "CA";
@@ -187,18 +187,18 @@ public class BusinessCentralExportReaderTests
     public void Read_Throws_WhenARequiredColumnIsMissing()
     {
         using var workbook = new XLWorkbook();
-        var sheet = workbook.AddWorksheet("Lignes");
+        var sheet = workbook.AddWorksheet("Articles");
         sheet.Cell(1, 1).Value = "Type";
         sheet.Cell(1, 2).Value = "Description";
         using var file = Save(workbook);
 
         var exception = Assert.Throws<BusinessCentralExportException>(() => BusinessCentralExportReader.Read(file));
 
-        Assert.Equal("The Lignes sheet is missing these columns: N°, Code d'unité de mesure.", exception.Message);
+        Assert.Equal("The Articles sheet is missing these columns: N°, Unité de mesure de base.", exception.Message);
     }
 
     [Fact]
-    public void Read_Throws_WhenThereIsNoLignesSheet()
+    public void Read_Throws_WhenThereIsNoArticlesSheet()
     {
         using var workbook = new XLWorkbook();
         workbook.AddWorksheet("Feuil1").Cell(1, 1).Value = "Type";
@@ -206,7 +206,7 @@ public class BusinessCentralExportReaderTests
 
         var exception = Assert.Throws<BusinessCentralExportException>(() => BusinessCentralExportReader.Read(file));
 
-        Assert.Equal("The file does not have a sheet named Lignes.", exception.Message);
+        Assert.Equal("The file does not have a sheet named Articles.", exception.Message);
     }
 
     [Fact]
@@ -222,7 +222,7 @@ public class BusinessCentralExportReaderTests
     private static MemoryStream BuildExport(params XLCellValue[][] lines)
     {
         using var workbook = new XLWorkbook();
-        var sheet = AddLignesSheet(workbook);
+        var sheet = AddArticlesSheet(workbook);
         for (var i = 0; i < lines.Length; i++)
         {
             for (var column = 0; column < lines[i].Length; column++)
@@ -234,9 +234,9 @@ public class BusinessCentralExportReaderTests
         return Save(workbook);
     }
 
-    private static IXLWorksheet AddLignesSheet(XLWorkbook workbook)
+    private static IXLWorksheet AddArticlesSheet(XLWorkbook workbook)
     {
-        var sheet = workbook.AddWorksheet("Lignes");
+        var sheet = workbook.AddWorksheet("Articles");
         for (var column = 0; column < Headers.Length; column++)
         {
             sheet.Cell(1, column + 1).Value = Headers[column];

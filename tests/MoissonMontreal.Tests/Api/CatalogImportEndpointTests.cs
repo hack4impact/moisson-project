@@ -19,15 +19,15 @@ public class CatalogImportEndpointTests(CatalogApiFactory factory) : IClassFixtu
 {
     private const string Route = "/api/catalog-items/import";
 
-    // Same headers as a real PO export, including the curly apostrophe Business Central uses in the unit header.
-    private static readonly string[] Headers = ["Type", "N°", "Description", "Code d’unité de mesure"];
+    // Headers read from the real Business Central item list.
+    private static readonly string[] Headers = ["Type", "N°", "Description", "Unité de mesure de base"];
 
     [Fact]
     public async Task Import_ReturnsUnauthorized_WhenTokenIsMissing()
     {
         using var client = factory.CreateClient();
 
-        var response = await client.PostAsync(Route, Form(BuildExport(["Article", "IMP-401", "Poivron", "CA"])));
+        var response = await client.PostAsync(Route, Form(BuildExport(["Inventaire", "IMP-401", "Poivron", "CA"])));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -40,7 +40,7 @@ public class CatalogImportEndpointTests(CatalogApiFactory factory) : IClassFixtu
     {
         using var client = await CreateClientAsync(role);
 
-        var response = await client.PostAsync(Route, Form(BuildExport(["Article", $"IMP-403-{role}", "Poivron", "CA"])));
+        var response = await client.PostAsync(Route, Form(BuildExport(["Inventaire", $"IMP-403-{role}", "Poivron", "CA"])));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal(0, await CountAsync($"IMP-403-{role}"));
@@ -51,9 +51,9 @@ public class CatalogImportEndpointTests(CatalogApiFactory factory) : IClassFixtu
     {
         using var client = await CreateClientAsync();
         using var export = BuildExport(
-            ["Article", "IMP-LIME", "Citron lime", "CA"],
-            ["Article", "IMP-PEPPER", "Poivron", "CA"],
-            ["Article", "IMP-PEPPER", "Poivron", "CA"]);
+            ["Inventaire", "IMP-LIME", "Citron lime", "CA"],
+            ["Inventaire", "IMP-PEPPER", "Poivron", "CA"],
+            ["Inventaire", "IMP-PEPPER", "Poivron", "CA"]);
 
         var response = await client.PostAsync(Route, Form(export));
 
@@ -68,7 +68,7 @@ public class CatalogImportEndpointTests(CatalogApiFactory factory) : IClassFixtu
     public async Task Import_SameFileTwice_DoesNotCreateDuplicates()
     {
         using var client = await CreateClientAsync();
-        XLCellValue[][] lines = [["Article", "IMP-TWICE-1", "Tomate", "CA"], ["Article", "IMP-TWICE-2", "Brocoli", "CA"]];
+        XLCellValue[][] lines = [["Inventaire", "IMP-TWICE-1", "Tomate", "CA"], ["Inventaire", "IMP-TWICE-2", "Brocoli", "CA"]];
 
         await client.PostAsync(Route, Form(BuildExport(lines)));
         var response = await client.PostAsync(Route, Form(BuildExport(lines)));
@@ -84,10 +84,10 @@ public class CatalogImportEndpointTests(CatalogApiFactory factory) : IClassFixtu
     {
         using var client = await CreateClientAsync();
         using var export = BuildExport(
-            ["Article", "IMP-MIX-1", "Citron lime", "CA"],
-            ["Article", "IMP-MIX-2", "", "CA"],
-            ["Commentaire", "", "Livraison en retard", ""],
-            ["Article", "IMP-MIX-3", "Brocoli", "CA"]);
+            ["Inventaire", "IMP-MIX-1", "Citron lime", "CA"],
+            ["Inventaire", "IMP-MIX-2", "", "CA"],
+            ["Service", "", "Livraison", ""],
+            ["Inventaire", "IMP-MIX-3", "Brocoli", "CA"]);
 
         var response = await client.PostAsync(Route, Form(export));
 
@@ -97,7 +97,7 @@ public class CatalogImportEndpointTests(CatalogApiFactory factory) : IClassFixtu
         Assert.Equal(
             [
                 new CatalogImportError(3, "IMP-MIX-2", "Name is required."),
-                new CatalogImportError(4, "", "The line type is Commentaire, not Article, so it is not a food item."),
+                new CatalogImportError(4, "", "The item type is Service, not Inventaire, so it is not a food item."),
             ],
             report.Errors);
     }
@@ -141,14 +141,14 @@ public class CatalogImportEndpointTests(CatalogApiFactory factory) : IClassFixtu
     {
         using var client = await CreateClientAsync();
         using var workbook = new XLWorkbook();
-        var sheet = workbook.AddWorksheet("Lignes");
+        var sheet = workbook.AddWorksheet("Articles");
         sheet.Cell(1, 1).Value = "Type";
         sheet.Cell(1, 2).Value = "Description";
-        sheet.Cell(1, 3).Value = "Code d'unité de mesure";
+        sheet.Cell(1, 3).Value = "Unité de mesure de base";
 
         var response = await client.PostAsync(Route, Form(Save(workbook)));
 
-        await AssertFileProblemAsync(response, "The Lignes sheet is missing these columns: N°.");
+        await AssertFileProblemAsync(response, "The Articles sheet is missing these columns: N°.");
     }
 
     [Fact]
@@ -173,8 +173,8 @@ public class CatalogImportEndpointTests(CatalogApiFactory factory) : IClassFixtu
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateToken());
 
         var response = await client.PostAsync(Route, Form(BuildExport(
-            ["Article", "IMP-409", "Poivron", "CA"],
-            ["Article", "IMP-409-OTHER", "Citron lime", "CA"])));
+            ["Inventaire", "IMP-409", "Poivron", "CA"],
+            ["Inventaire", "IMP-409-OTHER", "Citron lime", "CA"])));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -211,7 +211,7 @@ public class CatalogImportEndpointTests(CatalogApiFactory factory) : IClassFixtu
     private static MemoryStream BuildExport(params XLCellValue[][] lines)
     {
         using var workbook = new XLWorkbook();
-        var sheet = workbook.AddWorksheet("Lignes");
+        var sheet = workbook.AddWorksheet("Articles");
         for (var column = 0; column < Headers.Length; column++)
         {
             sheet.Cell(1, column + 1).Value = Headers[column];

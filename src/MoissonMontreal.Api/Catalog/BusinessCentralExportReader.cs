@@ -7,30 +7,30 @@ using MoissonMontreal.Core.Dtos;
 namespace MoissonMontreal.Api.Catalog;
 
 /// <summary>
-/// Reads the lines of a purchase order (PO) exported from Business Central to Excel, and turns each article line into a catalog row.
+/// Reads the item list (Articles) exported from Business Central to Excel, and turns each inventory item into a catalog row.
+/// Only the code, the name and the base unit are read: the export has no category nor quality class, and its costs are not fair market values.
 /// Columns are found by their header name, so the import keeps working if Business Central adds or moves columns.
 /// Every cell is read as text, and a formula is never calculated: only the value Excel saved with the file is read.
 /// </summary>
 public static class BusinessCentralExportReader
 {
     /// <summary>
-    /// Name of the sheet that holds the PO lines in a Business Central export.
+    /// Name of the sheet that holds the items in a Business Central item list export.
     /// </summary>
-    public const string SheetName = "Lignes";
+    public const string SheetName = "Articles";
 
     /// <summary>
     /// Category given to a new catalog item, since the export has no category. Moisson Montréal corrects it by hand.
     /// </summary>
     public const string DefaultCategory = "To classify";
 
-
     /// <summary>
-    /// Value of the Type column on a line that is a food item. Other lines, such as comments, are not imported.
+    /// Value of the Type column on an item that is food kept in stock. Other types, such as services, are not imported.
     /// </summary>
-    private const string ArticleType = "Article";
+    private const string InventoryType = "Inventaire";
 
     /// <summary>
-    /// Header of the column that says what kind of line it is.
+    /// Header of the column that says what kind of item it is.
     /// </summary>
     private const string TypeHeader = "Type";
 
@@ -45,17 +45,17 @@ public static class BusinessCentralExportReader
     private const string NameHeader = "Description";
 
     /// <summary>
-    /// Header of the column that holds the unit, such as CA (case) or KG.
+    /// Header of the column that holds the base unit of the item, such as KG, UN (unit) or CA (case). Prices are per this unit.
     /// </summary>
-    private const string UnitHeader = "Code d'unité de mesure";
+    private const string UnitHeader = "Unité de mesure de base";
 
     /// <summary>
-    /// Reads every line of the export. Empty lines are skipped. Lines that are not articles, and lines with an Excel error
+    /// Reads every row of the export. Empty rows are skipped. Items whose type is not Inventaire, and rows with an Excel error
     /// such as #REF! in a required cell, are reported, not ignored.
     /// </summary>
     /// <param name="file">Content of the .xlsx file.</param>
-    /// <returns>The article lines as catalog rows, and the lines that could not be read.</returns>
-    /// <exception cref="BusinessCentralExportException">The file is not an Excel file, has no Lignes sheet, or misses a required column.</exception>
+    /// <returns>The inventory items as catalog rows, and the rows that could not be read.</returns>
+    /// <exception cref="BusinessCentralExportException">The file is not an Excel file, has no Articles sheet, or misses a required column.</exception>
     public static BusinessCentralExport Read(Stream file)
     {
         using var workbook = OpenWorkbook(file);
@@ -91,10 +91,10 @@ public static class BusinessCentralExportReader
                 continue;
             }
 
-            if (!string.Equals(type, ArticleType, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(type, InventoryType, StringComparison.OrdinalIgnoreCase))
             {
                 var shownType = type.Length == 0 ? "empty" : type;
-                errors.Add(new CatalogImportError(rowNumber, code, $"The line type is {shownType}, not {ArticleType}, so it is not a food item."));
+                errors.Add(new CatalogImportError(rowNumber, code, $"The item type is {shownType}, not {InventoryType}, so it is not a food item."));
                 continue;
             }
 
@@ -212,8 +212,8 @@ public static class BusinessCentralExportReader
 /// <summary>
 /// Content read from a Business Central export: the lines to import and the lines that could not be read.
 /// </summary>
-/// <param name="Rows">Article lines, ready for <see cref="CatalogImporter"/>.</param>
-/// <param name="Errors">Lines that are not articles, with their row number and the reason.</param>
+/// <param name="Rows">Inventory items, ready for <see cref="CatalogImporter"/>.</param>
+/// <param name="Errors">Rows that could not be read or are not inventory items, with their row number and the reason.</param>
 public record BusinessCentralExport(IReadOnlyList<CatalogImportRow> Rows, IReadOnlyList<CatalogImportError> Errors);
 
 /// <summary>

@@ -18,7 +18,7 @@ namespace MoissonMontreal.Api.Controllers;
 public class CatalogImportController(CatalogImporter importer) : ControllerBase
 {
     /// <summary>
-    /// Largest file accepted, 10 MB. A Business Central PO export of a few dozen lines is about 15 KB.
+    /// Largest file accepted, 10 MB. The Business Central item list of Moisson Montréal, about 750 items, is about 60 KB.
     /// </summary>
     public const long MaxFileBytes = 10 * 1024 * 1024;
 
