@@ -103,5 +103,31 @@ public class CatalogItemValidatorTests
         Assert.Contains(nameof(CatalogItemRequest.QualityClass), errors.Keys);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void TryNormalize_AcceptsAnEmptyQualityClass_WhenItIsNotRequired(string? qualityClass)
+    {
+        var ok = CatalogItemValidator.TryNormalize(
+            Valid() with { QualityClass = qualityClass }, out var fields, out var errors, qualityClassRequired: false);
+
+        Assert.True(ok);
+        Assert.Empty(errors);
+        Assert.Null(fields.QualityClass);
+    }
+
+    [Theory]
+    [InlineData("a")]
+    [InlineData("AB")]
+    public void TryNormalize_StillRejectsAQualityClassThatIsNotOneCapitalLetter_WhenItIsNotRequired(string qualityClass)
+    {
+        var ok = CatalogItemValidator.TryNormalize(
+            Valid() with { QualityClass = qualityClass }, out _, out var errors, qualityClassRequired: false);
+
+        Assert.False(ok);
+        Assert.Contains(nameof(CatalogItemRequest.QualityClass), errors.Keys);
+    }
+
     private static CatalogItemRequest Valid() => new("Pain", "Boulangerie", "BC-001", "kg", "A");
 }
