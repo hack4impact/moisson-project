@@ -8,7 +8,7 @@ The database has four parts:
 | --- | --- | --- |
 | Accounts | roles, users | Who can use the app and what each person is allowed to do |
 | Donations | donors, food_items, quality_classes | Who gave food, what they gave, when, and in what condition |
-| Tax receipts | receipts, receipt_items | The receipts given to donors and the value of each food item on them |
+| Tax receipts | receipts, receipt_items, receipt_status_changes | The receipts given to donors, the value of each food item on them, and every change of their status |
 | Price grid | catalog_items, prices | The types of food the app knows, and the price of each one over time |
 
 ## Diagram
@@ -61,15 +61,21 @@ More detail: [Quality classes](quality-classes.md).
 
 ### receipts
 
-One row per tax receipt. It holds the donor who receives it, the total value in dollars and cents, and the date of the receipt.
+One row per tax receipt. It holds the donor who receives it, the total value in dollars and cents, the date of the receipt, and its status: draft, waiting for the supply director, waiting for Finance, approved, issued or cancelled.
 
-More detail: [Receipts and their prices](receipts.md).
+More detail: [Receipts and their prices](receipts.md) and [Receipt statuses](receipt-statuses.md).
 
 ### receipt_items
 
 The lines of a receipt, one per food item. Each line keeps a copy of everything used to value the item at the time: the quantity, the unit, the price of one unit and the quality percentage. If a food item or a price is changed later, receipts that already exist do not change.
 
 More detail: [Receipts and their prices](receipts.md).
+
+### receipt_status_changes
+
+The history of each receipt: one row every time its status changes, for example when Finance approves it. Each row keeps the status before and after, the employee who made the change, the date and time, and the reason when the receipt is refused or cancelled. Rows are only added, never changed, so the history shows who did what.
+
+More detail: [Receipt statuses](receipt-statuses.md).
 
 ### catalog_items
 
@@ -137,6 +143,12 @@ The database itself refuses anything that would break these rules, even if there
 - Donor names, food names, catalog item names, categories, Business Central codes and units cannot be empty.
 - Two catalog items cannot have the same Business Central code.
 
+**Receipt statuses**
+- A receipt and each change in its history can only have one of the six known statuses.
+- A change in the history must go from one status to a different one.
+- Refusing or cancelling a receipt requires a reason, and a reason cannot be empty.
+- A receipt cannot be deleted once its status has changed, and an employee cannot be deleted once they changed a status, so the history is never lost.
+
 **Accounts**
 - Two employees cannot have the same email or the same Microsoft account.
 - Emails are stored in lowercase, so the same address cannot be entered twice with different capital letters.
@@ -155,7 +167,7 @@ These parts of the project are planned in their own issues and will add tables l
 | --- | --- |
 | Price lookup by date | #25 |
 | Calculation of a donation's value | #30 |
-| Receipt statuses: prepared, approved at two levels, issued, cancelled and replaced | #31 |
+| Replacement receipts, linked to the receipt they cancel | To plan |
 | Receipt numbering, unique and with no gaps | #32 |
 | PDF receipt | #40 |
 
@@ -182,6 +194,7 @@ Each table comes from one of these migrations:
 | catalog_items, prices | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
 | quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
 | catalog item details | [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs) | [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql) | [catalog.md](catalog.md) |
+| receipt status, receipt_status_changes | [20261123052442_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261123052442_AddReceiptStatus.cs) | [0007_add_receipt_status.sql](sql/0007_add_receipt_status.sql) | [receipts.md](receipts.md) |
 
 The SQL scripts must be run in order on an empty database.
 

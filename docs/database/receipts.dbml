@@ -1,6 +1,6 @@
 // Receipts and their prices
 // Paste this file into https://dbdiagram.io to render the diagram.
-// Matches the migration 20261107041912_CreateReceipts.
+// Matches the migration 20261107041912_CreateReceipts, with the status added by 20261123052442_AddReceiptStatus.
 // donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems,
 // catalog_items from 20261110175320_CreateCatalogItemsAndPrices and quality_classes from 20261112060008_CreateQualityClasses.
 // They are shown here because receipts link to them.
@@ -106,6 +106,7 @@ Table receipts {
   total_amount numeric(12,2) [not null, note: 'Sum of the rounded line values, in dollars']
   receipt_date date [not null, default: `(now() AT TIME ZONE 'America/Montreal')::date`, note: 'Date in Montreal time, used for the tax year']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+  status varchar(30) [not null, default: 'Draft', note: 'Where the receipt is in the approval process. See receipt-statuses.md']
 
   indexes {
     id [pk, name: 'pk_receipts']
@@ -115,6 +116,7 @@ Table receipts {
 
   checks {
     `total_amount >= 0` [name: 'ck_receipts_total_amount_not_negative']
+    `status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')` [name: 'ck_receipts_status_valid']
   }
 
   Note: 'Tax receipts given to donors'

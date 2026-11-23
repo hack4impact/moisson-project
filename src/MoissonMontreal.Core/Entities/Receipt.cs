@@ -1,3 +1,5 @@
+using MoissonMontreal.Core.Receipts;
+
 namespace MoissonMontreal.Core.Entities;
 
 /// <summary>
@@ -39,4 +41,15 @@ public class Receipt
     /// Food items on this receipt, with the price used for each one.
     /// </summary>
     public ICollection<ReceiptItem> Items { get; set; } = [];
+
+    /// <summary>
+    /// Where the receipt is in the approval process. Draft for a new receipt.
+    /// Change it only through <see cref="ReceiptStateMachine"/>, so every change is allowed and recorded.
+    /// </summary>
+    public ReceiptStatus Status { get; set; }
+
+    /// <summary>
+    /// Every status change of this receipt, with who made it and when.
+    /// </summary>
+    public ICollection<ReceiptStatusChange> StatusChanges { get; set; } = [];
 }

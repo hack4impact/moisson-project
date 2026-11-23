@@ -39,6 +39,8 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
     /// </summary>
     public DbSet<ReceiptItem> ReceiptItems => Set<ReceiptItem>();
 
+    public DbSet<ReceiptStatusChange> ReceiptStatusChanges => Set<ReceiptStatusChange>();
+
     /// <summary>
     /// Types of food recognized by the app, which the price grid gives a price to.
     /// </summary>

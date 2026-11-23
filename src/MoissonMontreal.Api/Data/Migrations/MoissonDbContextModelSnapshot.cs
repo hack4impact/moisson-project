@@ -320,6 +320,14 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("receipt_date")
                         .HasDefaultValueSql("(now() AT TIME ZONE 'America/Montreal')::date");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Draft")
+                        .HasColumnName("status");
+
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)")
@@ -336,6 +344,8 @@ namespace MoissonMontreal.Api.Data.Migrations
 
                     b.ToTable("receipts", null, t =>
                         {
+                            t.HasCheckConstraint("ck_receipts_status_valid", "status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')");
+
                             t.HasCheckConstraint("ck_receipts_total_amount_not_negative", "total_amount >= 0");
                         });
                 });
@@ -397,6 +407,68 @@ namespace MoissonMontreal.Api.Data.Migrations
                             t.HasCheckConstraint("ck_receipt_items_unit_not_empty", "length(unit) > 0");
 
                             t.HasCheckConstraint("ck_receipt_items_unit_price_positive", "unit_price > 0");
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.ReceiptStatusChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("ChangedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("from_status");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("receipt_id");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("to_status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_receipt_status_changes");
+
+                    b.HasIndex("ChangedByUserId")
+                        .HasDatabaseName("ix_receipt_status_changes_changed_by_user_id");
+
+                    b.HasIndex("ReceiptId", "ChangedAt")
+                        .HasDatabaseName("ix_receipt_status_changes_receipt_id_changed_at");
+
+                    b.ToTable("receipt_status_changes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_receipt_status_changes_from_status_valid", "from_status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')");
+
+                            t.HasCheckConstraint("ck_receipt_status_changes_reason_not_empty", "length(reason) > 0");
+
+                            t.HasCheckConstraint("ck_receipt_status_changes_reason_required", "to_status NOT IN ('Draft', 'Cancelled') OR reason IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_receipt_status_changes_status_differs", "from_status <> to_status");
+
+                            t.HasCheckConstraint("ck_receipt_status_changes_to_status_valid", "to_status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')");
                         });
                 });
 
@@ -611,6 +683,27 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.Navigation("Receipt");
                 });
 
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.ReceiptStatusChange", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.User", "ChangedBy")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_receipt_status_changes_users_changed_by_user_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.Receipt", "Receipt")
+                        .WithMany("StatusChanges")
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_receipt_status_changes_receipts_receipt_id");
+
+                    b.Navigation("ChangedBy");
+
+                    b.Navigation("Receipt");
+                });
+
             modelBuilder.Entity("MoissonMontreal.Core.Entities.User", b =>
                 {
                     b.HasOne("MoissonMontreal.Core.Entities.Role", "Role")
@@ -636,6 +729,8 @@ namespace MoissonMontreal.Api.Data.Migrations
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Receipt", b =>
                 {
                     b.Navigation("Items");
+
+                    b.Navigation("StatusChanges");
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Role", b =>
