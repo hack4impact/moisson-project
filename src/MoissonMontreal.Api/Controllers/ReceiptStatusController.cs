@@ -89,8 +89,11 @@ public class ReceiptStatusController(ReceiptStatusService statuses) : Controller
     private ProblemDetails CreateProblem(int status, string title, string detail) =>
         ProblemDetailsFactory.CreateProblemDetails(HttpContext, status, title: title, detail: detail);
 
-    private static ReceiptStatusChangeDto ToDto(ReceiptStatusChange change) => new(
+    private static ReceiptStatusChangeDto ToDto(AppliedReceiptAction applied) => ToDto(applied.Change, applied.ReceiptNumber);
+
+    private static ReceiptStatusChangeDto ToDto(ReceiptStatusChange change, string? receiptNumber) => new(
         change.ReceiptId,
+        receiptNumber,
         change.FromStatus,
         change.ToStatus,
         change.ChangedBy.DisplayName,

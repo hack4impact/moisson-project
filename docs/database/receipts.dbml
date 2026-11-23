@@ -1,6 +1,7 @@
 // Receipts and their prices
 // Paste this file into https://dbdiagram.io to render the diagram.
-// Matches the migration 20261107041912_CreateReceipts, with the status added by 20261123052442_AddReceiptStatus.
+// Matches the migration 20261107041912_CreateReceipts, with the status added by 20261123052442_AddReceiptStatus
+// and the receipt number added by 20261123233317_AddReceiptNumbers.
 // donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems,
 // catalog_items from 20261110175320_CreateCatalogItemsAndPrices and quality_classes from 20261112060008_CreateQualityClasses.
 // They are shown here because receipts link to them.
@@ -107,16 +108,21 @@ Table receipts {
   receipt_date date [not null, default: `(now() AT TIME ZONE 'America/Montreal')::date`, note: 'Date in Montreal time, used for the tax year']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
   status varchar(30) [not null, default: 'Draft', note: 'Where the receipt is in the approval process. See receipt-statuses.md']
+  receipt_number varchar(10) [null, note: 'Unique number such as DEN_000001, given when the receipt is issued and kept if it is cancelled']
 
   indexes {
     id [pk, name: 'pk_receipts']
     (id, donor_id) [unique, name: 'ak_receipts_id_donor_id']
     donor_id [name: 'ix_receipts_donor_id']
+    receipt_number [unique, name: 'ix_receipts_receipt_number']
   }
 
   checks {
     `total_amount >= 0` [name: 'ck_receipts_total_amount_not_negative']
     `status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')` [name: 'ck_receipts_status_valid']
+    `receipt_number ~ '^DEN_[0-9]{6}$'` [name: 'ck_receipts_receipt_number_format']
+    `status <> 'Issued' OR receipt_number IS NOT NULL` [name: 'ck_receipts_issued_has_receipt_number']
+    `status IN ('Issued', 'Cancelled') OR receipt_number IS NULL` [name: 'ck_receipts_receipt_number_only_once_issued']
   }
 
   Note: 'Tax receipts given to donors'
