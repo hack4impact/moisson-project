@@ -37,7 +37,9 @@ More detail: [Users and roles](users-roles.md).
 
 ### donors
 
-The organizations and people who give food: name, address, postal code and contact person. This is the information printed on the tax receipt. Two donors can have the same name, for example two branches of the same grocery chain.
+The organizations and people who give food: name, type (individual or organization), street address, city, province, postal code, contact person, email, phone, notes and Business Central code. The name and the address are printed on the tax receipt. Two donors can have the same name, for example two branches of the same grocery chain, but two donors cannot share a Business Central code.
+
+More detail: [Donor profiles](donors.md).
 
 ### food_items
 
@@ -136,6 +138,8 @@ The database itself refuses anything that would break these rules, even if there
 - A receipt total cannot be negative.
 - Donor names, food names, catalog item names, categories, Business Central codes and units cannot be empty.
 - Two catalog items cannot have the same Business Central code.
+- A donor is an individual or an organization.
+- Two donors cannot have the same Business Central code, and a donor's code cannot be empty when it is set.
 
 **Accounts**
 - Two employees cannot have the same email or the same Microsoft account.
@@ -182,6 +186,7 @@ Each table comes from one of these migrations:
 | catalog_items, prices | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
 | quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
 | catalog item details | [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs) | [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql) | [catalog.md](catalog.md) |
+| donor profile | [20261118185010_AddDonorProfile](../../src/MoissonMontreal.Api/Data/Migrations/20261118185010_AddDonorProfile.cs) | [0007_add_donor_profile.sql](sql/0007_add_donor_profile.sql) | [donors.md](donors.md) |
 
 The SQL scripts must be run in order on an empty database.
 

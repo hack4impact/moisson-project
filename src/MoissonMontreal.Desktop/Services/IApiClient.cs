@@ -1,5 +1,7 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using MoissonMontreal.Core.Dtos;
 
 namespace MoissonMontreal.Desktop.Services;
 
@@ -14,6 +16,29 @@ public interface IApiClient
     /// <param name="cancellationToken">Lets the caller stop the check early (for example when leaving the page). If cancelled, the method returns <c>false</c>.</param>
     /// <returns><c>true</c> if <c>/health</c> answered 200 (API and database both work); <c>false</c> if the API is unreachable, the database is down (503), or any other error occurs.</returns>
     Task<bool> IsApiReachableAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets one donor.
+    /// </summary>
+    /// <param name="id">Identifier of the donor.</param>
+    /// <param name="cancellationToken">Lets the caller stop the request early.</param>
+    /// <returns>The donor, or the reason it could not be read.</returns>
+    Task<DonorResult> GetDonorAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a donor.
+    /// </summary>
+    /// <param name="request">Fields of the new donor.</param>
+    /// <param name="cancellationToken">Lets the caller stop the request early.</param>
+    /// <returns>The saved donor, or the reason it was refused.</returns>
+    Task<DonorResult> CreateDonorAsync(DonorRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replaces the fields of a donor.
+    /// </summary>
+    /// <param name="id">Identifier of the donor.</param>
+    /// <param name="request">New fields of the donor.</param>
+    /// <param name="cancellationToken">Lets the caller stop the request early.</param>
+    /// <returns>The saved donor, or the reason it was refused.</returns>
+    Task<DonorResult> UpdateDonorAsync(Guid id, DonorRequest request, CancellationToken cancellationToken = default);
 }
-
-
