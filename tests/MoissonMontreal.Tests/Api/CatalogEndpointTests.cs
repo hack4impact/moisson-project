@@ -156,6 +156,34 @@ public class CatalogEndpointTests(CatalogApiFactory factory) : IClassFixture<Cat
         Assert.Contains(nameof(CatalogItemRequest.QualityClass), problem!.Errors.Keys);
     }
 
+    [Fact]
+    public async Task Create_ReturnsBadRequest_WhenTheQualityClassIsMissing()
+    {
+        using var client = await CreateClientAsync();
+
+        var response = await client.PostAsJsonAsync("/api/catalog-items", Request(code: "BC-NO-CLASS") with { QualityClass = null });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        Assert.Contains(nameof(CatalogItemRequest.QualityClass), problem!.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task Update_PicksTheQualityClassOfAnImportedItem_ButNeverLeavesItEmpty()
+    {
+        var id = await AddItemWithoutQualityClassAsync("BC-IMPORTED");
+        using var client = await CreateClientAsync();
+
+        var listed = (await client.GetFromJsonAsync<List<CatalogItemDto>>("/api/catalog-items"))!.Single(item => item.Id == id);
+        var leftEmpty = await client.PutAsJsonAsync($"/api/catalog-items/{id}", Request(code: "BC-IMPORTED") with { QualityClass = null });
+        var picked = await client.PutAsJsonAsync($"/api/catalog-items/{id}", Request(code: "BC-IMPORTED", qualityClass: "B"));
+
+        Assert.Null(listed.QualityClass);
+        Assert.Equal(HttpStatusCode.BadRequest, leftEmpty.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, picked.StatusCode);
+        Assert.Equal("B", (await picked.Content.ReadFromJsonAsync<CatalogItemDto>())!.QualityClass);
+    }
+
     [Theory]
     [InlineData(RoleCodes.Supply)]
     [InlineData(RoleCodes.SupplyDirector)]
@@ -221,6 +249,18 @@ public class CatalogEndpointTests(CatalogApiFactory factory) : IClassFixture<Cat
         var response = await client.PostAsJsonAsync("/api/catalog-items", request);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<CatalogItemDto>())!;
+    }
+
+    private async Task<Guid> AddItemWithoutQualityClassAsync(string code)
+    {
+        await using var context = new MoissonDbContext(
+            new DbContextOptionsBuilder<MoissonDbContext>().UseNpgsql(factory.ConnectionString).Options);
+        var item = TestCatalogItems.Create("Poivron");
+        item.BusinessCentralCode = code;
+        item.QualityClassCode = null;
+        context.CatalogItems.Add(item);
+        await context.SaveChangesAsync();
+        return item.Id;
     }
 
     private async Task ClearAsync()

@@ -55,7 +55,6 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("name");
 
                     b.Property<string>("QualityClassCode")
-                        .IsRequired()
                         .HasMaxLength(1)
                         .HasColumnType("character varying(1)")
                         .HasColumnName("quality_class");
@@ -601,7 +600,6 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .WithMany()
                         .HasForeignKey("QualityClassCode")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_catalog_items_quality_classes_quality_class");
 
                     b.Navigation("QualityClass");

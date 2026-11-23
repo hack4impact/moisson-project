@@ -2,7 +2,8 @@
 // Paste this file into https://dbdiagram.io to render the diagram.
 // Matches the migrations 20261103000127_CreateUsersAndRoles, 20261105163138_CreateDonorsAndFoodItems,
 // 20261107041912_CreateReceipts, 20261110175320_CreateCatalogItemsAndPrices,
-// 20261112060008_CreateQualityClasses, 20261117040905_AddCatalogItemDetails and 20261123052442_AddReceiptStatus.
+// 20261112060008_CreateQualityClasses, 20261117040905_AddCatalogItemDetails,
+// 20261120031640_MakeCatalogItemQualityClassOptional and 20261123052442_AddReceiptStatus.
 
 Project moisson_montreal {
   database_type: 'PostgreSQL'
@@ -196,7 +197,7 @@ Table catalog_items {
   category varchar(100) [not null]
   business_central_code varchar(50) [not null, note: 'Unique code used to match the item in Business Central']
   unit varchar(20) [not null, note: 'Free text until the price of one unit is decided']
-  quality_class varchar(1) [not null, note: 'Code of the quality class. The class lives on the catalog item']
+  quality_class varchar(1) [note: 'Code of the quality class. The class lives on the catalog item. Empty until someone picks it, as for items imported from Business Central']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
   updated_at timestamptz [null, note: 'Stored in UTC, empty if never changed']
 

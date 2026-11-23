@@ -194,7 +194,7 @@ Each table comes from one of these migrations:
 | catalog_items, prices | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
 | quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
 | catalog item details | [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs) | [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql) | [catalog.md](catalog.md) |
-| receipt status, receipt_status_changes | [20261123052442_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261123052442_AddReceiptStatus.cs) | [0007_add_receipt_status.sql](sql/0007_add_receipt_status.sql) | [receipts.md](receipts.md) |
+| receipt status, receipt_status_changes | [20261123052442_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261123052442_AddReceiptStatus.cs) | [0008_add_receipt_status.sql](sql/0008_add_receipt_status.sql) | [receipts.md](receipts.md) |
 
 The SQL scripts must be run in order on an empty database.
 
