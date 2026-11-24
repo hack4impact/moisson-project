@@ -83,3 +83,15 @@ This migration lets the quality_class column be empty, so items imported from Bu
 Rolling it back makes the class required again. It stops with a clear error, and changes nothing, while a catalog item has no class: pick a class for each of them first. A class is never guessed.
 
 The SQL script is generated from the migration with `dotnet ef migrations script AddCatalogItemDetails MakeCatalogItemQualityClassOptional --project src/MoissonMontreal.Api --output docs/database/sql/0007_make_catalog_item_quality_class_optional.sql`, and the byte order mark (BOM) at the start of the generated file is removed. It must be run after [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql).
+
+### Business Central item mappings and active items
+
+- Entity Framework migration: [20261124214039_AddBcItemMappings](../../src/MoissonMontreal.Api/Data/Migrations/20261124214039_AddBcItemMappings.cs)
+- Equivalent SQL script: [0008_add_bc_item_mappings.sql](sql/0008_add_bc_item_mappings.sql)
+- Table settings: [BcItemMappingConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/BcItemMappingConfiguration.cs) and [BcItemMappingChangeConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/BcItemMappingChangeConfiguration.cs)
+
+This migration adds the bc_item_mappings table, which remembers which catalog item values each Business Central item code, and the bc_item_mapping_changes table, which keeps the history of every change with its author. A code can only have one mapping, and a mapping is only created after a person confirms it.
+
+It also adds the is_active column to catalog_items. Existing items become active. An item removed from the price grid is made inactive instead of being deleted, so past donations and prices stay valid, and every mapping that points to it must be reviewed.
+
+The SQL script is generated from the migration with `dotnet ef migrations script MakeCatalogItemQualityClassOptional AddBcItemMappings --project src/MoissonMontreal.Api --output docs/database/sql/0008_add_bc_item_mappings.sql`, and the byte order mark (BOM) at the start of the generated file is removed. It must be run after [0007_make_catalog_item_quality_class_optional.sql](sql/0007_make_catalog_item_quality_class_optional.sql).

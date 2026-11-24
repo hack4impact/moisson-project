@@ -63,6 +63,11 @@ public class CatalogItem
     public QualityClass? QualityClass { get; set; }
 
     /// <summary>
+    /// False once the item is removed from the price grid. The row is kept so past donations and prices stay valid.
+    /// </summary>
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>
     /// Date and time the catalog item was created, set by the database.
     /// </summary>
     public DateTimeOffset CreatedAt { get; set; }
