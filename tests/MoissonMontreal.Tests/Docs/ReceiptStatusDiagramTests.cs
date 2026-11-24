@@ -5,8 +5,9 @@ namespace MoissonMontreal.Tests.Docs;
 
 public partial class ReceiptStatusDiagramTests
 {
-    private static readonly string Diagram = MermaidBlock().Match(
-        File.ReadAllText(Path.Combine(RepositoryPaths.DatabaseDocs, "receipt-statuses.md")).ReplaceLineEndings("\n")).Groups["diagram"].Value;
+    private static readonly string Page = File.ReadAllText(Path.Combine(RepositoryPaths.DatabaseDocs, "receipt-statuses.md")).ReplaceLineEndings("\n");
+
+    private static readonly string Diagram = MermaidBlock().Match(Page).Groups["diagram"].Value;
 
     [Fact]
     public void Diagram_ShowsExactlyTheTransitionsOfTheStateMachine()
@@ -32,6 +33,14 @@ public partial class ReceiptStatusDiagramTests
     {
         Assert.Contains("[*] --> Draft\n", Diagram);
         Assert.Contains("Cancelled --> [*]\n", Diagram);
+    }
+
+    [Fact]
+    public void ReceiptNumbersSection_ShowsTheFormatOfTheCode()
+    {
+        Assert.Contains("\n## Receipt numbers\n", Page);
+        Assert.Contains($"{ReceiptNumber.Series}_ followed by {ReceiptNumber.Digits} digits", Page);
+        Assert.Contains($"{ReceiptNumber.Format(1)}, {ReceiptNumber.Format(2)}", Page);
     }
 
     [GeneratedRegex("```mermaid\n(?<diagram>.*?)```", RegexOptions.Singleline)]
