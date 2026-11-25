@@ -1,6 +1,8 @@
 using System.Threading.Tasks;
 using System.Net.Http;
 using System.Threading;
+using System.Net.Http.Json;
+using MoissonMontreal.Core.Dtos;
 
 namespace MoissonMontreal.Desktop.Services;
 
@@ -40,6 +42,29 @@ public class ApiClient : IApiClient
         catch (TaskCanceledException)
         {
             return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<CurrentUserDto?> GetCurrentUserAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await _httpClient.GetAsync("api/me", cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<CurrentUserDto>(cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+        catch (TaskCanceledException)
+        {
+            return null;
         }
     }
 }
