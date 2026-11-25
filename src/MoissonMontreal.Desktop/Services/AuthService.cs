@@ -77,9 +77,10 @@ public sealed class AuthService : IAuthService
         var result = await _msalClient
             .AcquireTokenInteractive(_scopes)
             .WithUseEmbeddedWebView(false)
-            .WithPrompt(Prompt.SelectAccount)
+            .WithPrompt(Prompt.ForceLogin)
             .ExecuteAsync(cancellationToken);
 
+        await RemoveOtherAccountsAsync(result.Account);
         UserName = result.Account.Username;
     }
 
@@ -107,7 +108,25 @@ public sealed class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Gets a token from the cache for the first cached account, renewing it silently if needed.
+    /// Removes from the cache every account except the one that just signed in,
+    /// so that silent sign-in and API calls always use that account.
+    /// </summary>
+    /// <param name="signedInAccount">Account returned by the interactive sign-in.</param>
+    private async Task RemoveOtherAccountsAsync(IAccount signedInAccount)
+    {
+        var accounts = await _msalClient.GetAccountsAsync();
+        foreach (var account in accounts)
+        {
+            if (account.HomeAccountId.Identifier != signedInAccount.HomeAccountId.Identifier)
+            {
+                await _msalClient.RemoveAsync(account);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets a token from the cache for the cached account, renewing it silently if needed.
+    /// The cache holds only one account, because <see cref="RemoveOtherAccountsAsync"/> runs after each interactive sign-in.
     /// </summary>
     /// <param name="cancellationToken">Lets the caller stop the request early.</param>
     /// <returns>The MSAL result with the token, or <c>null</c> if there is no cached account or the user must sign in again.</returns>
