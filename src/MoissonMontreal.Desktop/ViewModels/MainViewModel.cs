@@ -2,7 +2,6 @@ using System;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Identity.Client;
 using MoissonMontreal.Desktop.Services;
 
 namespace MoissonMontreal.Desktop.ViewModels;
@@ -75,9 +74,12 @@ public partial class MainViewModel : ViewModelBase
                 OnSignedIn();
             }
         }
-        catch (MsalException)
+        catch (Exception)
         {
-            // For example no internet at startup: the user can still sign in with the button.
+            if (CurrentPage is LoginViewModel loginPage)
+            {
+                loginPage.ErrorMessage = "Could not restore your session. Check your internet connection and sign in again.";
+            }
         }
     }
 
@@ -110,12 +112,22 @@ public partial class MainViewModel : ViewModelBase
 
     /// <summary>
     /// Signs the user out (removes the saved session) and goes back to the login page.
+    /// If the saved session cannot be removed, the login page shows an error message.
     /// </summary>
     [RelayCommand]
     private async Task SignOutAsync()
     {
-        await _authService.SignOutAsync();
+        var loginPage = CreateLoginPage();
+        try
+        {
+            await _authService.SignOutAsync();
+        }
+        catch (Exception)
+        {
+            loginPage.ErrorMessage = "Sign-out failed: your session may still be saved on this computer. Restart the app and sign out again.";
+        }
+
         IsSignedIn = false;
-        CurrentPage = CreateLoginPage();
+        CurrentPage = loginPage;
     }
 }

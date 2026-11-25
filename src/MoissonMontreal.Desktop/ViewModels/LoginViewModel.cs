@@ -66,7 +66,7 @@ public partial class LoginViewModel : ViewModelBase
         {
             ErrorMessage = "Sign-in cancelled.";
         }
-        catch (MsalException)
+        catch (Exception)
         {
             ErrorMessage = "Sign-in failed. Check your internet connection and try again.";
         }
