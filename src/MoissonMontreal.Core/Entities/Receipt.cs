@@ -49,6 +49,12 @@ public class Receipt
     public ReceiptStatus Status { get; set; }
 
     /// <summary>
+    /// Unique number of the receipt, such as DEN_000001, given when the receipt is issued and kept if it is cancelled.
+    /// Empty until then.
+    /// </summary>
+    public string? ReceiptNumber { get; set; }
+
+    /// <summary>
     /// Every status change of this receipt, with who made it and when.
     /// </summary>
     public ICollection<ReceiptStatusChange> StatusChanges { get; set; } = [];

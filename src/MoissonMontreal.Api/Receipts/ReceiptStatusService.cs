@@ -13,12 +13,13 @@ public class ReceiptStatusService(MoissonDbContext db, UserLookupService users)
     /// Applies an action to a receipt: checks it against <see cref="ReceiptStateMachine"/>, then changes the status and
     /// records who made the change in one transaction. The receipt row is locked before its status and its submitter are
     /// read, so an action on the same receipt at the same time waits, then is checked against the new status and submitter.
+    /// When the receipt is issued, it also takes the next receipt number in that same transaction.
     /// </summary>
     /// <exception cref="ReceiptNotFoundException">The receipt does not exist.</exception>
     /// <exception cref="InvalidReceiptTransitionException">The action is not allowed from the current status.</exception>
     /// <exception cref="InvalidReceiptReasonException">The reason is missing, empty or too long.</exception>
     /// <exception cref="SubmitterCannotApproveException">The employee submitted the receipt and tries to approve it.</exception>
-    public async Task<ReceiptStatusChange> ApplyAsync(
+    public async Task<AppliedReceiptAction> ApplyAsync(
         Guid receiptId,
         ReceiptAction action,
         string? reason,
@@ -45,9 +46,22 @@ public class ReceiptStatusService(MoissonDbContext db, UserLookupService users)
             throw new SubmitterCannotApproveException(receiptId, action);
         }
 
+        var newNumber = transition.To == ReceiptStatus.Issued
+            ? ReceiptNumber.Format(await TakeNextReceiptSequenceAsync(cancellationToken))
+            : null;
+
         await db.Receipts
             .Where(r => r.Id == receiptId)
-            .ExecuteUpdateAsync(r => r.SetProperty(x => x.Status, transition.To), cancellationToken);
+            .ExecuteUpdateAsync(
+                setters =>
+                {
+                    setters.SetProperty(r => r.Status, transition.To);
+                    if (newNumber is not null)
+                    {
+                        setters.SetProperty(r => r.ReceiptNumber, newNumber);
+                    }
+                },
+                cancellationToken);
 
         if (transition.To == ReceiptStatus.Cancelled)
         {
@@ -68,7 +82,7 @@ public class ReceiptStatusService(MoissonDbContext db, UserLookupService users)
         await db.SaveChangesAsync(cancellationToken);
         await dbTransaction.CommitAsync(cancellationToken);
 
-        return change;
+        return new AppliedReceiptAction(change, newNumber ?? receipt.ReceiptNumber);
     }
 
     private static string? ReadReason(ReceiptTransition transition, string? reason)
@@ -90,6 +104,25 @@ public class ReceiptStatusService(MoissonDbContext db, UserLookupService users)
         }
 
         return trimmed;
+    }
+
+    /// <summary>
+    /// Adds one to the counter of the series and returns the new value. The UPDATE locks the counter row until the
+    /// transaction ends: a receipt issued at the same time waits, then gets the next value, and if this transaction is
+    /// rolled back, the counter goes back too, so no number is skipped.
+    /// </summary>
+    private async Task<int> TakeNextReceiptSequenceAsync(CancellationToken cancellationToken)
+    {
+        var sequences = await db.Database
+            .SqlQuery<int>($"""
+                UPDATE receipt_number_counters
+                SET last_number = last_number + 1
+                WHERE series = {ReceiptNumber.Series}
+                RETURNING last_number AS "Value"
+                """)
+            .ToListAsync(cancellationToken);
+
+        return sequences.Single();
     }
 
     private Task<int?> FindSubmitterIdAsync(Guid receiptId, CancellationToken cancellationToken) =>

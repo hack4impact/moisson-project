@@ -8,7 +8,7 @@ The database has four parts:
 | --- | --- | --- |
 | Accounts | roles, users | Who can use the app and what each person is allowed to do |
 | Donations | donors, food_items, quality_classes | Who gave food, what they gave, when, and in what condition |
-| Tax receipts | receipts, receipt_items, receipt_status_changes | The receipts given to donors, the value of each food item on them, and every change of their status |
+| Tax receipts | receipts, receipt_items, receipt_status_changes, receipt_number_counters | The receipts given to donors, the value of each food item on them, every change of their status, and their numbers |
 | Price grid | catalog_items, prices, bc_item_mappings, bc_item_mapping_changes | The types of food the app knows, the price of each one over time, and which Business Central item each one values |
 
 ## Diagram
@@ -61,7 +61,7 @@ More detail: [Quality classes](quality-classes.md).
 
 ### receipts
 
-One row per tax receipt. It holds the donor who receives it, the total value in dollars and cents, the date of the receipt, and its status: draft, waiting for the supply director, waiting for Finance, approved, issued or cancelled.
+One row per tax receipt. It holds the donor who receives it, the total value in dollars and cents, the date of the receipt, its status (draft, waiting for the supply director, waiting for Finance, approved, issued or cancelled) and, once issued, its number, such as DEN_000001.
 
 More detail: [Receipts and their prices](receipts.md) and [Receipt statuses](receipt-statuses.md).
 
@@ -76,6 +76,12 @@ More detail: [Receipts and their prices](receipts.md).
 The history of each receipt: one row every time its status changes, for example when Finance approves it. Each row keeps the status before and after, the employee who made the change, the date and time, and the reason when the receipt is refused or cancelled. Rows are only added, never changed, so the history shows who did what.
 
 More detail: [Receipt statuses](receipt-statuses.md).
+
+### receipt_number_counters
+
+The last receipt number given, one row per series. There is a single series for now: DEN, for food donations. When a receipt is issued, this row is locked and increased by one, so two receipts issued at the same time never get the same number, and a number is never skipped.
+
+More detail: [Receipt statuses](receipt-statuses.md#receipt-numbers).
 
 ### catalog_items
 
@@ -155,6 +161,11 @@ The database itself refuses anything that would break these rules, even if there
 - Donor names, food names, catalog item names, categories, Business Central codes and units cannot be empty.
 - Two catalog items cannot have the same Business Central code.
 
+**Receipt numbers**
+- Two receipts cannot have the same number.
+- An issued receipt always has a number, and a receipt that was never issued has none.
+- A number is DEN_ followed by 6 digits, such as DEN_000001.
+
 **Receipt statuses**
 - A receipt and each change in its history can only have one of the six known statuses.
 - A change in the history must go from one status to a different one.
@@ -180,7 +191,6 @@ These parts of the project are planned in their own issues and will add tables l
 | Price lookup by date | #25 |
 | Calculation of a donation's value | #30 |
 | Replacement receipts, linked to the receipt they cancel | To plan |
-| Receipt numbering, unique and with no gaps | #32 |
 | PDF receipt | #40 |
 
 
@@ -206,6 +216,7 @@ Each table comes from one of these migrations:
 | quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
 | catalog item details | [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs) | [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql) | [catalog.md](catalog.md) |
 | receipt status, receipt_status_changes | [20261127052039_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261127052039_AddReceiptStatus.cs) | [0009_add_receipt_status.sql](sql/0009_add_receipt_status.sql) | [receipts.md](receipts.md) |
+| receipt number, receipt_number_counters | [20261127053347_AddReceiptNumbers](../../src/MoissonMontreal.Api/Data/Migrations/20261127053347_AddReceiptNumbers.cs) | [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql) | [receipts.md](receipts.md) |
 
 The SQL scripts must be run in order on an empty database.
 

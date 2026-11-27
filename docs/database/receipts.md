@@ -24,6 +24,7 @@ One row per tax receipt.
 | receipt_date | Date of the receipt in Montreal time, set automatically. This is the date used for the tax year. |
 | created_at | Date and time the receipt was created, stored in UTC |
 | status | Where the receipt is in the approval process: Draft, PendingSupplyApproval, PendingFinanceApproval, Approved, Issued or Cancelled. A new receipt starts as Draft. |
+| receipt_number | Unique number of the receipt, such as DEN_000001. Empty until the receipt is issued, then kept even if the receipt is cancelled. |
 
 ### receipt_items
 
@@ -55,6 +56,17 @@ One row every time the status of a receipt changes. Rows are only added, so the 
 | reason | Why the receipt was refused or cancelled. Required in those two cases, empty otherwise. |
 
 The status changes that are allowed, and who can make each one, are decided by the API, not by the database. See [Receipt statuses](receipt-statuses.md) for the diagram and the rules.
+
+### receipt_number_counters
+
+The last receipt number given in each series. There is one series for now: DEN, for food donations. The migration creates its row with 0, so the first receipt issued gets DEN_000001. If receipts were issued before the migration, it numbers them first: every receipt whose history shows it was issued, even if it was cancelled since, in the order it was issued.
+
+| Column | Meaning |
+| --- | --- |
+| series | Name of the series, such as DEN |
+| last_number | Last number given in the series |
+
+See [Receipt statuses](receipt-statuses.md#receipt-numbers) for how a number is given.
 
 ## How the value is calculated
 
@@ -126,6 +138,9 @@ created_at is a precise moment, stored and read back in UTC. Convert it to Ameri
 12. A change in the history must go from one status to a different one.
 13. A change that refuses a receipt (back to Draft) or cancels it requires a reason, and a reason cannot be empty.
 14. A receipt cannot be deleted once it has a status change, and an employee cannot be deleted once they changed a status.
+15. Two receipts cannot have the same number.
+16. An issued receipt must have a number, and a receipt that was never issued (Draft, waiting for approval or Approved) cannot have one. A receipt cancelled after it was issued keeps its number.
+17. A receipt number is DEN_ followed by 6 digits.
 
 Because donor_id is part of both links, the app cannot change the donor of a receipt or of a food item once it is saved.
 
@@ -140,6 +155,7 @@ A cancelled receipt keeps its lines, so the original stays readable. Cancelling 
 | Entity Framework migration | [20261107041912_CreateReceipts](../../src/MoissonMontreal.Api/Data/Migrations/20261107041912_CreateReceipts.cs) |
 | Equivalent SQL script | [0003_create_receipts.sql](sql/0003_create_receipts.sql) |
 | Table settings | [ReceiptConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptConfiguration.cs) and [ReceiptItemConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptItemConfiguration.cs) |
+| Receipt number migration | [20261127053347_AddReceiptNumbers](../../src/MoissonMontreal.Api/Data/Migrations/20261127053347_AddReceiptNumbers.cs), with [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql) and [ReceiptNumberCounterConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptNumberCounterConfiguration.cs) |
 | Status and history migration | [20261127052039_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261127052039_AddReceiptStatus.cs), with [0009_add_receipt_status.sql](sql/0009_add_receipt_status.sql) and [ReceiptStatusChangeConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptStatusChangeConfiguration.cs) |
 
 The SQL script is generated from the migration with `dotnet ef migrations script CreateDonorsAndFoodItems CreateReceipts --project src/MoissonMontreal.Api --output docs/database/sql/0003_create_receipts.sql`. It must be run after [0001_create_users_and_roles.sql](sql/0001_create_users_and_roles.sql) and [0002_create_donors_and_food_items.sql](sql/0002_create_donors_and_food_items.sql). It records itself in the migration history, so Entity Framework will not apply it a second time.

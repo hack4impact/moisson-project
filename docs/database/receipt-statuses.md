@@ -61,6 +61,19 @@ The roles come from the permissions in [roles-permissions.md](../auth/roles-perm
 
 The database also refuses an unknown status, a change without a reason when a receipt is refused or cancelled, and the deletion of a receipt or an employee that appears in the history. See [receipts.md](receipts.md).
 
+## Receipt numbers
+
+A receipt gets its number when it is issued, never before. The number is DEN_ followed by 6 digits: DEN_000001, DEN_000002, and so on. The series continues from one year to the next.
+
+1. DEN stands for food donations (denrées). It differs from the other receipt series of Moisson Montréal, such as WEB_ for money donations, so two receipts of the organization never share a number. This format is still to be confirmed with Nafissa.
+2. Numbers follow each other with no gap. A number is only used when the receipt is really issued: if the issue fails, the next receipt gets that number.
+3. Two receipts issued at the same time never get the same number. The last number given is kept in the receipt_number_counters table, and its row is locked while a receipt is issued, so issues are numbered one after the other.
+4. A cancelled receipt keeps its number, and that number is never given again.
+
+The database refuses two receipts with the same number, an issued receipt without a number, a number on a receipt that was never issued, and a number in another format. See [receipts.md](receipts.md).
+
+To change the format, update `ReceiptNumber.cs` in `src/MoissonMontreal.Core/Receipts/`, then add a migration, since the database checks the format.
+
 ## What the API answers
 
 Each action has its own endpoint:
@@ -77,7 +90,7 @@ Each action has its own endpoint:
 
 | Situation | Answer |
 | --- | --- |
-| The change is allowed | 200, with the status before and after, the employee, the date, the reason and the actions now possible |
+| The change is allowed | 200, with the status before and after, the employee, the date, the reason, the actions now possible and the receipt number once the receipt is issued |
 | The change is not allowed from the current status | 409, with a message such as "Issue is not allowed on a receipt in status Draft. Allowed actions: Submit, Cancel.", the current status and the actions possible |
 | Someone else changed the status in the meantime, and the action is no longer allowed from the new status | 409 |
 | The reason is missing, empty or too long | 400 |
@@ -91,7 +104,8 @@ Each action has its own endpoint:
 | Piece | Location | Role |
 | --- | --- | --- |
 | `ReceiptStateMachine` | `src/MoissonMontreal.Core/Receipts/` | The list of allowed changes, with the permission, the reason and the submitter rule of each one |
-| `ReceiptStatusService` | `src/MoissonMontreal.Api/Receipts/` | Applies a change: checks it, then saves the status and the history in one transaction |
+| `ReceiptStatusService` | `src/MoissonMontreal.Api/Receipts/` | Applies a change: checks it, then saves the status and the history in one transaction. When the receipt is issued, it takes the next number in that same transaction |
+| `ReceiptNumber` | `src/MoissonMontreal.Core/Receipts/` | The format of the receipt number |
 | `ReceiptStatusController` | `src/MoissonMontreal.Api/Controllers/` | One endpoint per action, protected by the permission of its change |
 
 To change what is allowed:

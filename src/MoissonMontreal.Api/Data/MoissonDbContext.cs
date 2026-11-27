@@ -41,6 +41,8 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
 
     public DbSet<ReceiptStatusChange> ReceiptStatusChanges => Set<ReceiptStatusChange>();
 
+    public DbSet<ReceiptNumberCounter> ReceiptNumberCounters => Set<ReceiptNumberCounter>();
+
     /// <summary>
     /// Types of food recognized by the app, which the price grid gives a price to.
     /// </summary>

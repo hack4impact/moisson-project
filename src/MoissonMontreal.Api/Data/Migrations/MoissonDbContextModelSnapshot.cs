@@ -426,6 +426,11 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("receipt_date")
                         .HasDefaultValueSql("(now() AT TIME ZONE 'America/Montreal')::date");
 
+                    b.Property<string>("ReceiptNumber")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("receipt_number");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -448,8 +453,18 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.HasIndex("DonorId")
                         .HasDatabaseName("ix_receipts_donor_id");
 
+                    b.HasIndex("ReceiptNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_receipts_receipt_number");
+
                     b.ToTable("receipts", null, t =>
                         {
+                            t.HasCheckConstraint("ck_receipts_issued_has_receipt_number", "status <> 'Issued' OR receipt_number IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_receipts_receipt_number_format", "receipt_number ~ '^DEN_[0-9]{6}$'");
+
+                            t.HasCheckConstraint("ck_receipts_receipt_number_only_once_issued", "status IN ('Issued', 'Cancelled') OR receipt_number IS NULL");
+
                             t.HasCheckConstraint("ck_receipts_status_valid", "status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')");
 
                             t.HasCheckConstraint("ck_receipts_total_amount_not_negative", "total_amount >= 0");
@@ -520,6 +535,33 @@ namespace MoissonMontreal.Api.Data.Migrations
                             t.HasCheckConstraint("ck_receipt_items_unit_not_empty", "length(unit) > 0");
 
                             t.HasCheckConstraint("ck_receipt_items_unit_price_positive", "unit_price > 0");
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.ReceiptNumberCounter", b =>
+                {
+                    b.Property<string>("Series")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("series");
+
+                    b.Property<int>("LastNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_number");
+
+                    b.HasKey("Series")
+                        .HasName("pk_receipt_number_counters");
+
+                    b.ToTable("receipt_number_counters", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_receipt_number_counters_last_number_in_range", "last_number BETWEEN 0 AND 999999");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Series = "DEN",
+                            LastNumber = 0
                         });
                 });
 
