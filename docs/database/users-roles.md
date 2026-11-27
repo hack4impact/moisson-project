@@ -35,7 +35,7 @@ One row per employee who has been given access to the app.
 | --- | --- |
 | id | Number that identifies the user, assigned automatically |
 | email | Microsoft work email of the employee. Two users cannot share the same email. |
-| entra_object_id | Identifier of the employee's Microsoft account. It stays empty until the employee's first action that requires a permission. |
+| entra_object_id | Identifier of the employee's Microsoft account. It stays empty until the employee signs in for the first time. |
 | display_name | Name shown in the app |
 | role_id | The role of the employee (see the roles table) |
 | is_active | Yes while the employee has access. Set to no when the admin removes access. |
@@ -77,12 +77,27 @@ Passwords are not stored in the app. Employees sign in with their Microsoft work
 
 ## Life of an account
 
-1. The admin adds the employee with their work email, name and role.
-2. The first time an employee's action requires a permission, the app links the employee's Microsoft account to that row.
-3. The admin can change the role at any time.
-4. When the admin removes access, the account is deactivated rather than deleted, so the history of who did what is kept.
+1. The admin adds the employee with their work email, name and role, from the Accounts screen.
+2. The first time the employee signs in, the app links their Microsoft account to that row.
+3. The admin can edit the name and email, and change the role at any time. A role change takes effect on the employee's next action.
+4. When the admin removes access, the account is deactivated rather than deleted, so the history of who did what is kept. The employee is refused from their next action and sees the same message as someone who was never added. The admin can give the access back later.
+
+Every change is written to user_account_changes with the admin who made it.
+
+Two rules protect the app from being left without an administrator:
+- An admin cannot change their own role or remove their own access.
+- The last active admin cannot lose the role or be deactivated. An admin who has never signed in still counts as active.
 
 The very first Admin account cannot be added from the app, since no admin exists yet. It is inserted once directly in the database during the setup on Azure.
+
+### Handing over the administrator role
+
+When an administrator leaves, for example at the end of the project:
+1. The leaving admin gives the Admin role to the person who takes over.
+2. The new admin signs in once, so their account shows as linked. This confirms the email is right before the old admin loses access.
+3. The new admin removes the access of the old admin.
+
+The app cannot prevent the only admin from becoming unreachable, for example if they leave Moisson Montréal and IT closes their Microsoft account before they hand over. Their account still counts as an admin in the app, but nobody can sign in with it. The role then has to be given to someone else directly in the database, as for the very first admin. Keeping at least two active admins avoids this.
 
 ## Migration
 

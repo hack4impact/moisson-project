@@ -53,11 +53,11 @@ The department names above come from the PRD. The admin chooses the role that ma
 | --- | --- |
 | The employee is not signed in, or their session expired | 401: the app asks them to sign in |
 | The employee's role does not allow the action | 403: access refused |
-| The employee signed in with Microsoft but was never added to the app | 403 for every protected action |
-| The admin removed the employee's access | 403 for every protected action, even for a former Admin |
-| The employee's account is already linked to another Microsoft account | 403 for every protected action |
+| The employee signed in with Microsoft but was never added to the app | 403 for every action |
+| The admin removed the employee's access | 403 for every action, even for a former Admin |
+| The employee's account is already linked to another Microsoft account | 403 for every action |
 
-The first time an employee does an action that requires a permission, their Microsoft account is linked to the account the admin created with their email. After that, the app recognizes them by their Microsoft account, even if their email changes. An account whose access was removed can still be linked, but the API keeps refusing its actions.
+The first time the employee uses the app after signing in, their Microsoft account is linked to the account the admin created with their email. After that, the app recognizes them by their Microsoft account, even if their email changes. An account whose access was removed can still be linked, but the API keeps refusing its actions.
 
 If the employee's Microsoft account is recreated (for example, IT deleted and recreated it), the app no longer recognizes them and refuses all their actions. The app cannot reset this link yet (see Open points).
 
@@ -89,9 +89,11 @@ Use the constants in `Permissions`, never a role name. The roles allowed for eac
 | `PermissionHandler` | `src/MoissonMontreal.Api/Authorization/` | Allows the request when the employee's role is in the list, otherwise the API answers 403 |
 | `UserLookupService` | `src/MoissonMontreal.Api/Authorization/` | Finds the employee's active account in the `users` table and links it at the first permission check |
 
-The role is read from the database only when an endpoint requires a permission. Endpoints such as `/health` and `api/me` do not read it.
+The default policy, set in `src/MoissonMontreal.Api/Program.cs`, also requires an active account with any role (`RoleCodes.All`). So an endpoint without a permission still refuses a deactivated or never-added employee.
 
-The Microsoft account is linked by `UserLookupService`, called from `PermissionHandler`, the first time the employee calls an endpoint that requires a permission. Signing in or calling `/api/me` does not link the account, so `entra_object_id` can still be empty after a sign-in.
+Every endpoint reads the employee's account and role from the database, except `/health`. `api/me` returns the role, so the desktop app can show only what the employee is allowed to use.
+
+The Microsoft account is linked by `UserLookupService`, called from `PermissionHandler`, the first time the employee calls any endpoint, usually `/api/me` right after signing in.
 
 ### Tests
 
