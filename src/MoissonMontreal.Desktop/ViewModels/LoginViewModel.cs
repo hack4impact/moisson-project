@@ -24,9 +24,9 @@ public partial class LoginViewModel : ViewModelBase
     private readonly IAuthService _authService;
 
     /// <summary>
-    /// Action to run once the user is signed in (opens the home page).
+    /// Action to run once the user is signed in: checks their access, then opens the home page.
     /// </summary>
-    private readonly Action _onSignedIn;
+    private readonly Func<Task> _onSignedIn;
 
     /// <summary>
     /// Message shown when sign-in fails or is cancelled. Empty when there is no error.
@@ -39,7 +39,7 @@ public partial class LoginViewModel : ViewModelBase
     /// </summary>
     /// <param name="authService">Service that signs the user in.</param>
     /// <param name="onSignedIn">Action to run once the user is signed in.</param>
-    public LoginViewModel(IAuthService authService, Action onSignedIn)
+    public LoginViewModel(IAuthService authService, Func<Task> onSignedIn)
     {
         _authService = authService;
         _onSignedIn = onSignedIn;
@@ -56,7 +56,7 @@ public partial class LoginViewModel : ViewModelBase
         try
         {
             await _authService.SignInInteractiveAsync(cancellationToken);
-            _onSignedIn();
+            await _onSignedIn();
         }
         catch (OperationCanceledException)
         {

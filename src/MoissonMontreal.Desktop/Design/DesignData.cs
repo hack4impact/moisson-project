@@ -20,5 +20,10 @@ public static class DesignData
     /// <summary>
     /// Login page ViewModel whose sign-in does nothing.
     /// </summary>
-    public static LoginViewModel Login { get; } = new(new FakeAuthService(), () => { });
+    public static LoginViewModel Login { get; } = new(new FakeAuthService(), () => System.Threading.Tasks.Task.CompletedTask);
+
+    /// <summary>
+    /// Account page ViewModel backed by a <see cref="FakeApiClient"/>, signed in as the preview administrator.
+    /// </summary>
+    public static AccountsViewModel Accounts { get; } = new(new FakeApiClient(), "preview@example.org");
 }
