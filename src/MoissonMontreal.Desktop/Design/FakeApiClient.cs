@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using MoissonMontreal.Desktop.Services;
+using MoissonMontreal.Core.Authorization;
 using MoissonMontreal.Core.Dtos;
 
 namespace MoissonMontreal.Desktop.Design;
@@ -23,7 +24,8 @@ public class FakeApiClient : IApiClient
             ObjectId: "00000000-0000-0000-0000-000000000000",
             Name: "Preview User",
             Email: "preview@example.org",
-            TenantId: null);
+            TenantId: null,
+            Role: RoleCodes.Admin);
         return Task.FromResult<CurrentUserDto?>(user);
     }
 }

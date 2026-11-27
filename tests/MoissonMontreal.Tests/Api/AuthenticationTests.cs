@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Tokens;
@@ -30,8 +31,41 @@ public class AuthenticationTests(PermissionsApiFactory factory) : IClassFixture<
                 AuthenticatedApiFactory.ObjectId,
                 AuthenticatedApiFactory.Name,
                 AuthenticatedApiFactory.Email,
-                factory.TenantId),
+                factory.TenantId,
+                RoleCodes.Supply),
             user);
+    }
+
+    [Theory]
+    [InlineData(RoleCodes.Supply)]
+    [InlineData(RoleCodes.SupplyDirector)]
+    [InlineData(RoleCodes.Finance)]
+    [InlineData(RoleCodes.Admin)]
+    public async Task Me_ReturnsTheRoleOfTheAccount(string role)
+    {
+        await factory.ReplaceUsersWithAsync(role);
+
+        var user = await (await GetMeAsync(factory.CreateToken())).Content.ReadFromJsonAsync<CurrentUserDto>();
+
+        Assert.Equal(role, user?.Role);
+    }
+
+    [Fact]
+    public async Task Me_ReturnsTheNewRole_OnTheNextRequestAfterARoleChange()
+    {
+        await factory.ReplaceUsersWithAsync(RoleCodes.Supply);
+        var token = factory.CreateToken();
+        var before = await (await GetMeAsync(token)).Content.ReadFromJsonAsync<CurrentUserDto>();
+
+        await using (var context = factory.CreateDbContext())
+        {
+            var adminRoleId = await context.Roles.Where(r => r.Code == RoleCodes.Admin).Select(r => r.Id).SingleAsync();
+            await context.Users.ExecuteUpdateAsync(set => set.SetProperty(u => u.RoleId, adminRoleId));
+        }
+
+        var after = await (await GetMeAsync(token)).Content.ReadFromJsonAsync<CurrentUserDto>();
+
+        Assert.Equal((RoleCodes.Supply, RoleCodes.Admin), (before?.Role, after?.Role));
     }
 
     [Fact]
