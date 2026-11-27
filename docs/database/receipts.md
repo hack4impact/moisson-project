@@ -38,6 +38,7 @@ One row per food item on a receipt.
 | unit | Unit of that quantity, such as kg or case, copied from the food item |
 | unit_price | Price of one unit of the item when the receipt was made, in dollars, with up to 4 decimal places. For example, $0.125 per kg. |
 | quality_percent | Share of the price kept for the item's quality grade: 100 for grade A, between 50 and 75 for grade B, 0 for grade C |
+| receipt_cancelled | Yes once the receipt is cancelled. The line is kept as a record of the cancelled receipt, but the food item can then go on a new receipt. |
 
 ### receipt_status_changes
 
@@ -106,7 +107,7 @@ created_at is a precise moment, stored and read back in UTC. Convert it to Ameri
 
 1. Each receipt belongs to exactly one donor. A donor can have many receipts.
 2. Each receipt lists its food items through receipt_items.
-3. A food item can appear on only one receipt, so one donation cannot get two tax receipts.
+3. A food item can appear on only one receipt that is not cancelled, so one donation cannot get two valid tax receipts. Once a receipt is cancelled, its food items can go on a new receipt.
 4. A receipt can only list food items given by its own donor.
 
 ## Rules enforced by the database
@@ -115,7 +116,7 @@ created_at is a precise moment, stored and read back in UTC. Convert it to Ameri
 2. A donor cannot be deleted while they still have a receipt.
 3. A food item cannot be deleted while it is on a receipt.
 4. When a receipt is deleted, its lines are deleted with it. The food items themselves are kept.
-5. A food item cannot be on two receipts.
+5. A food item cannot be on two receipts that are not cancelled. This is a partial unique index on food_item_id, limited to lines where receipt_cancelled is no.
 6. The food item and the receipt on a line must have the same donor. This is enforced by including donor_id in both links.
 7. The total of a receipt cannot be negative. It can be $0, for example when every item is grade C.
 8. A quantity must be greater than 0, and a unit cannot be empty.
@@ -130,7 +131,7 @@ Because donor_id is part of both links, the app cannot change the donor of a rec
 
 The app, not the database, makes sure that the total matches the sum of the rounded lines.
 
-A cancelled receipt keeps its food items. When replacement receipts are added, rule 5 will need to allow a food item on a cancelled receipt and on the receipt that replaces it.
+A cancelled receipt keeps its lines, so the original stays readable. Cancelling a receipt marks its lines with receipt_cancelled in the same transaction as the status change.
 
 ## Migration
 
@@ -139,7 +140,7 @@ A cancelled receipt keeps its food items. When replacement receipts are added, r
 | Entity Framework migration | [20261107041912_CreateReceipts](../../src/MoissonMontreal.Api/Data/Migrations/20261107041912_CreateReceipts.cs) |
 | Equivalent SQL script | [0003_create_receipts.sql](sql/0003_create_receipts.sql) |
 | Table settings | [ReceiptConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptConfiguration.cs) and [ReceiptItemConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptItemConfiguration.cs) |
-| Status and history migration | [20261123052442_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261123052442_AddReceiptStatus.cs), with [0008_add_receipt_status.sql](sql/0008_add_receipt_status.sql) and [ReceiptStatusChangeConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptStatusChangeConfiguration.cs) |
+| Status and history migration | [20261127052039_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261127052039_AddReceiptStatus.cs), with [0009_add_receipt_status.sql](sql/0009_add_receipt_status.sql) and [ReceiptStatusChangeConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptStatusChangeConfiguration.cs) |
 
 The SQL script is generated from the migration with `dotnet ef migrations script CreateDonorsAndFoodItems CreateReceipts --project src/MoissonMontreal.Api --output docs/database/sql/0003_create_receipts.sql`. It must be run after [0001_create_users_and_roles.sql](sql/0001_create_users_and_roles.sql) and [0002_create_donors_and_food_items.sql](sql/0002_create_donors_and_food_items.sql). It records itself in the migration history, so Entity Framework will not apply it a second time.
 

@@ -255,6 +255,70 @@ public class ReceiptStatusEndpointTests(PermissionsApiFactory factory) : IClassF
     }
 
     [Fact]
+    public async Task Approve_ChecksTheSubmitterAgain_WhenTheReceiptIsResubmittedWhileTheApprovalWaits()
+    {
+        var receiptId = await CreateReceiptAsync();
+        await PostAsync(Supply, receiptId, "submit");
+
+        await using var holder = factory.CreateDbContext();
+        await using var transaction = await holder.Database.BeginTransactionAsync();
+        await holder.Database.ExecuteSqlAsync($"SELECT 1 FROM receipts WHERE id = {receiptId} FOR UPDATE");
+
+        var approval = PostAsync(Admin, receiptId, "approve-level-1");
+        await WaitUntilARequestWaitsForALockAsync();
+
+        var directorId = await UserIdAsync(Director);
+        var adminId = await UserIdAsync(Admin);
+        await holder.Database.ExecuteSqlAsync($"""
+            UPDATE receipts SET status = 'Draft' WHERE id = {receiptId};
+            INSERT INTO receipt_status_changes (receipt_id, from_status, to_status, changed_by_user_id, reason)
+            VALUES ({receiptId}, 'PendingSupplyApproval', 'Draft', {directorId}, 'Wrong quantity');
+            UPDATE receipts SET status = 'PendingSupplyApproval' WHERE id = {receiptId};
+            INSERT INTO receipt_status_changes (receipt_id, from_status, to_status, changed_by_user_id)
+            VALUES ({receiptId}, 'Draft', 'PendingSupplyApproval', {adminId});
+            """);
+        await transaction.CommitAsync();
+
+        var response = await approval;
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(ReceiptStatus.PendingSupplyApproval, await StatusOfAsync(receiptId));
+    }
+
+    [Fact]
+    public async Task Cancel_FreesTheFoodItems_ForANewReceipt_AndKeepsTheCancelledLines()
+    {
+        var (receiptId, donorId, foodItemId) = await CreateReceiptWithAFoodItemAsync();
+
+        var response = await PostAsync(Supply, receiptId, "cancel", new ReceiptReasonRequest("Wrong quantity"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var context = factory.CreateDbContext();
+        var replacement = new Receipt { DonorId = donorId, TotalAmount = 10m, Items = [Line(foodItemId)] };
+        context.Receipts.Add(replacement);
+        await context.SaveChangesAsync();
+        var lines = await context.ReceiptItems
+            .Where(i => i.FoodItemId == foodItemId)
+            .Select(i => new { i.ReceiptId, i.ReceiptCancelled })
+            .ToListAsync();
+        Assert.Equivalent(
+            new[] { new { ReceiptId = receiptId, ReceiptCancelled = true }, new { ReceiptId = replacement.Id, ReceiptCancelled = false } },
+            lines);
+    }
+
+    [Fact]
+    public async Task OtherActions_KeepTheFoodItemsOnTheReceipt()
+    {
+        var (receiptId, donorId, foodItemId) = await CreateReceiptWithAFoodItemAsync();
+
+        await PostAsync(Supply, receiptId, "submit");
+
+        await using var context = factory.CreateDbContext();
+        context.Receipts.Add(new Receipt { DonorId = donorId, TotalAmount = 10m, Items = [Line(foodItemId)] });
+        await PostgresConstraintAssertions.AssertViolatesConstraintAsync(context, "ix_receipt_items_food_item_id");
+    }
+
+    [Fact]
     public async Task SimultaneousApprovals_LetOnlyOneSucceed()
     {
         var receiptId = await CreateReceiptAsync();
@@ -288,6 +352,61 @@ public class ReceiptStatusEndpointTests(PermissionsApiFactory factory) : IClassF
         var url = $"/api/receipts/{receiptId}/{action}";
         return body is null ? await client.PostAsync(url, null) : await client.PostAsJsonAsync(url, body);
     }
+
+    private async Task WaitUntilARequestWaitsForALockAsync()
+    {
+        await using var context = factory.CreateDbContext();
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            var waiting = await context.Database
+                .SqlQuery<int>($"SELECT count(*)::int AS \"Value\" FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'")
+                .SingleAsync();
+            if (waiting > 0)
+            {
+                return;
+            }
+
+            await Task.Delay(100);
+        }
+
+        throw new TimeoutException("The approval never waited for the receipt lock.");
+    }
+
+    private async Task<int> UserIdAsync(Employee employee)
+    {
+        await using var context = factory.CreateDbContext();
+        return await context.Users.Where(u => u.Email == employee.Email).Select(u => u.Id).SingleAsync();
+    }
+
+    private async Task<(Guid ReceiptId, Guid DonorId, Guid FoodItemId)> CreateReceiptWithAFoodItemAsync()
+    {
+        await using var context = factory.CreateDbContext();
+        var donor = new Donor { Name = "Boulangerie Saint-Laurent" };
+        var bread = new FoodItem
+        {
+            Donor = donor,
+            Name = "Pain",
+            Quantity = 12.50m,
+            Unit = "kg",
+            DonationDate = new DateOnly(2026, 11, 3),
+            Quality = "B",
+        };
+        context.FoodItems.Add(bread);
+        await context.SaveChangesAsync();
+        var receipt = new Receipt { DonorId = donor.Id, TotalAmount = 37.50m, Items = [Line(bread.Id)] };
+        context.Receipts.Add(receipt);
+        await context.SaveChangesAsync();
+        return (receipt.Id, donor.Id, bread.Id);
+    }
+
+    private static ReceiptItem Line(Guid foodItemId) => new()
+    {
+        FoodItemId = foodItemId,
+        Quantity = 12.50m,
+        Unit = "kg",
+        UnitPrice = 4.00m,
+        QualityPercent = 75m,
+    };
 
     private async Task<Guid> CreateReceiptAsync()
     {

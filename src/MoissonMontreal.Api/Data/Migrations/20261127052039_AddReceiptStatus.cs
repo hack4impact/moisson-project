@@ -11,6 +11,10 @@ namespace MoissonMontreal.Api.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropIndex(
+                name: "ix_receipt_items_food_item_id",
+                table: "receipt_items");
+
             migrationBuilder.AddColumn<string>(
                 name: "status",
                 table: "receipts",
@@ -18,6 +22,13 @@ namespace MoissonMontreal.Api.Data.Migrations
                 maxLength: 30,
                 nullable: false,
                 defaultValue: "Draft");
+
+            migrationBuilder.AddColumn<bool>(
+                name: "receipt_cancelled",
+                table: "receipt_items",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false);
 
             migrationBuilder.CreateTable(
                 name: "receipt_status_changes",
@@ -59,6 +70,13 @@ namespace MoissonMontreal.Api.Data.Migrations
                 sql: "status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')");
 
             migrationBuilder.CreateIndex(
+                name: "ix_receipt_items_food_item_id",
+                table: "receipt_items",
+                column: "food_item_id",
+                unique: true,
+                filter: "NOT receipt_cancelled");
+
+            migrationBuilder.CreateIndex(
                 name: "ix_receipt_status_changes_changed_by_user_id",
                 table: "receipt_status_changes",
                 column: "changed_by_user_id");
@@ -79,9 +97,23 @@ namespace MoissonMontreal.Api.Data.Migrations
                 name: "ck_receipts_status_valid",
                 table: "receipts");
 
+            migrationBuilder.DropIndex(
+                name: "ix_receipt_items_food_item_id",
+                table: "receipt_items");
+
             migrationBuilder.DropColumn(
                 name: "status",
                 table: "receipts");
+
+            migrationBuilder.DropColumn(
+                name: "receipt_cancelled",
+                table: "receipt_items");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_receipt_items_food_item_id",
+                table: "receipt_items",
+                column: "food_item_id",
+                unique: true);
         }
     }
 }

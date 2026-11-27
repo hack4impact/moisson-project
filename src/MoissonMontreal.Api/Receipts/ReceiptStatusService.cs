@@ -11,14 +11,13 @@ public class ReceiptStatusService(MoissonDbContext db, UserLookupService users)
 {
     /// <summary>
     /// Applies an action to a receipt: checks it against <see cref="ReceiptStateMachine"/>, then changes the status and
-    /// records who made the change in one transaction. The status is only changed if it is still the one that was read,
-    /// so two employees acting at the same time cannot both succeed.
+    /// records who made the change in one transaction. The receipt row is locked before its status and its submitter are
+    /// read, so an action on the same receipt at the same time waits, then is checked against the new status and submitter.
     /// </summary>
     /// <exception cref="ReceiptNotFoundException">The receipt does not exist.</exception>
     /// <exception cref="InvalidReceiptTransitionException">The action is not allowed from the current status.</exception>
     /// <exception cref="InvalidReceiptReasonException">The reason is missing, empty or too long.</exception>
     /// <exception cref="SubmitterCannotApproveException">The employee submitted the receipt and tries to approve it.</exception>
-    /// <exception cref="ReceiptStatusChangedException">Someone else changed the status in the meantime.</exception>
     public async Task<ReceiptStatusChange> ApplyAsync(
         Guid receiptId,
         ReceiptAction action,
@@ -29,13 +28,16 @@ public class ReceiptStatusService(MoissonDbContext db, UserLookupService users)
         var user = await users.FindActiveUserAsync(employee, cancellationToken)
             ?? throw new InvalidOperationException("Only an employee with an active account can change the status of a receipt.");
 
-        var status = await db.Receipts
-            .Where(r => r.Id == receiptId)
-            .Select(r => (ReceiptStatus?)r.Status)
-            .SingleOrDefaultAsync(cancellationToken)
+        await using var dbTransaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        var receipt = (await db.Receipts
+            .FromSql($"SELECT * FROM receipts WHERE id = {receiptId} FOR UPDATE")
+            .AsNoTracking()
+            .ToListAsync(cancellationToken))
+            .SingleOrDefault()
             ?? throw new ReceiptNotFoundException(receiptId);
 
-        var transition = ReceiptStateMachine.GetTransition(status, action);
+        var transition = ReceiptStateMachine.GetTransition(receipt.Status, action);
         var savedReason = ReadReason(transition, reason);
 
         if (transition.ForbiddenToSubmitter && await FindSubmitterIdAsync(receiptId, cancellationToken) == user.Id)
@@ -43,14 +45,15 @@ public class ReceiptStatusService(MoissonDbContext db, UserLookupService users)
             throw new SubmitterCannotApproveException(receiptId, action);
         }
 
-        await using var dbTransaction = await db.Database.BeginTransactionAsync(cancellationToken);
-
-        var updated = await db.Receipts
-            .Where(r => r.Id == receiptId && r.Status == transition.From)
+        await db.Receipts
+            .Where(r => r.Id == receiptId)
             .ExecuteUpdateAsync(r => r.SetProperty(x => x.Status, transition.To), cancellationToken);
-        if (updated == 0)
+
+        if (transition.To == ReceiptStatus.Cancelled)
         {
-            throw new ReceiptStatusChangedException(receiptId);
+            await db.ReceiptItems
+                .Where(i => i.ReceiptId == receiptId)
+                .ExecuteUpdateAsync(i => i.SetProperty(x => x.ReceiptCancelled, true), cancellationToken);
         }
 
         var change = new ReceiptStatusChange

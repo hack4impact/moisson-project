@@ -136,7 +136,21 @@ internal static class PostgresSchemaReader
                     """);
             }
 
-            tables[name] = table with { Columns = columns, Checks = checks };
+            var indexes = new Dictionary<string, SchemaIndex>();
+            foreach (var (indexName, index) in table.Indexes)
+            {
+                indexes[indexName] = index.Where is null
+                    ? index
+                    : index with
+                    {
+                        Where = await RewriteAsync(
+                            connection,
+                            $"CREATE INDEX \"probe_{indexName}\" ON \"{probe}\" ({string.Join(", ", index.Columns)}) WHERE {index.Where}",
+                            $"SELECT pg_get_expr(indpred, indrelid, true) FROM pg_index WHERE indexrelid = '\"probe_{indexName}\"'::regclass")
+                    };
+            }
+
+            tables[name] = table with { Columns = columns, Checks = checks, Indexes = indexes };
         }
 
         await transaction.RollbackAsync();

@@ -56,7 +56,8 @@ The roles come from the permissions in [roles-permissions.md](../auth/roles-perm
 2. The employee who submitted a receipt cannot approve it, at either level. If the receipt is refused and submitted again by someone else, that person is the one who cannot approve it.
 3. Refusing or cancelling a receipt requires a reason of at most 1000 characters. Spaces around it are removed, and a reason made only of spaces is refused.
 4. Every change is saved in the receipt_status_changes table with the status before and after, the employee, the date and time, and the reason. The status and its history are saved together, so one is never saved without the other.
-5. If two employees act on the same receipt at the same time, only the first change is saved. The second one gets an error and must reload the receipt.
+5. If two employees act on the same receipt at the same time, the receipt is locked until the first change is saved. The second action waits, then is checked against the new status and the new submitter: if it is no longer allowed, it gets an error and the employee must reload the receipt.
+6. Cancelling a receipt keeps its lines, so the original stays readable, but its food items are free again and can go on a new receipt.
 
 The database also refuses an unknown status, a change without a reason when a receipt is refused or cancelled, and the deletion of a receipt or an employee that appears in the history. See [receipts.md](receipts.md).
 
@@ -78,7 +79,7 @@ Each action has its own endpoint:
 | --- | --- |
 | The change is allowed | 200, with the status before and after, the employee, the date, the reason and the actions now possible |
 | The change is not allowed from the current status | 409, with a message such as "Issue is not allowed on a receipt in status Draft. Allowed actions: Submit, Cancel.", the current status and the actions possible |
-| Someone else changed the status in the meantime | 409 |
+| Someone else changed the status in the meantime, and the action is no longer allowed from the new status | 409 |
 | The reason is missing, empty or too long | 400 |
 | The employee's role does not allow the action | 403 |
 | The employee tries to approve a receipt they submitted | 403 |

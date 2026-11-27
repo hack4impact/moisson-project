@@ -480,6 +480,12 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnType("numeric(12,2)")
                         .HasColumnName("quantity");
 
+                    b.Property<bool>("ReceiptCancelled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("receipt_cancelled");
+
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -496,7 +502,8 @@ namespace MoissonMontreal.Api.Data.Migrations
 
                     b.HasIndex("FoodItemId")
                         .IsUnique()
-                        .HasDatabaseName("ix_receipt_items_food_item_id");
+                        .HasDatabaseName("ix_receipt_items_food_item_id")
+                        .HasFilter("NOT receipt_cancelled");
 
                     b.HasIndex("FoodItemId", "DonorId")
                         .HasDatabaseName("ix_receipt_items_food_item_id_donor_id");

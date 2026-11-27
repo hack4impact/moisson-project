@@ -132,7 +132,7 @@ internal sealed record SchemaColumn(string Type, bool NotNull, string? Default, 
 
 /// <summary>
 /// One index, primary key or unique constraint, with its columns or expressions in order,
-/// and the condition of a partial index. A diagram cannot show a condition, so it is always null there.
+/// and the condition of a partial index. A diagram gives the condition in the index note, as "Partial index where `condition`".
 /// </summary>
 internal sealed record SchemaIndex(IReadOnlyList<string> Columns, bool Primary, bool Unique, string? Where = null);
 

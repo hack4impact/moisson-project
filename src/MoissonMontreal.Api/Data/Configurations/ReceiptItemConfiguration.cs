@@ -26,7 +26,11 @@ public class ReceiptItemConfiguration : IEntityTypeConfiguration<ReceiptItem>
 
         builder.HasKey(i => new { i.ReceiptId, i.FoodItemId });
 
-        builder.HasIndex(i => i.FoodItemId).IsUnique();
+        builder.HasIndex(i => i.FoodItemId)
+            .IsUnique()
+            .HasFilter("NOT receipt_cancelled");
+
+        builder.Property(i => i.ReceiptCancelled).HasDefaultValue(false);
 
         builder.Property(i => i.Quantity).HasPrecision(12, 2);
 

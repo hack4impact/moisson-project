@@ -3,7 +3,7 @@
 // Matches the migrations 20261103000127_CreateUsersAndRoles, 20261105163138_CreateDonorsAndFoodItems,
 // 20261107041912_CreateReceipts, 20261110175320_CreateCatalogItemsAndPrices,
 // 20261112060008_CreateQualityClasses, 20261117040905_AddCatalogItemDetails,
-// 20261120031640_MakeCatalogItemQualityClassOptional, 20261124214039_AddBcItemMappings and 20261123052442_AddReceiptStatus.
+// 20261120031640_MakeCatalogItemQualityClassOptional, 20261124214039_AddBcItemMappings and 20261127052039_AddReceiptStatus.
 
 Project moisson_montreal {
   database_type: 'PostgreSQL'
@@ -173,10 +173,11 @@ Table receipt_items {
   unit varchar(20) [not null, note: 'Copied from the food item when the receipt was made']
   unit_price numeric(12,4) [not null, note: 'Price of one unit when the receipt was made']
   quality_percent numeric(5,2) [not null, note: 'A = 100, B = 50 to 75, C = 0']
+  receipt_cancelled boolean [not null, default: false, note: 'True once the receipt is cancelled. The line is kept, but the food item is free again']
 
   indexes {
     (receipt_id, food_item_id) [pk, name: 'pk_receipt_items']
-    food_item_id [unique, name: 'ix_receipt_items_food_item_id', note: 'A food item can only be on one receipt']
+    food_item_id [unique, name: 'ix_receipt_items_food_item_id', note: 'Partial index where `NOT receipt_cancelled`: a food item can be on only one receipt that is not cancelled']
     (food_item_id, donor_id) [name: 'ix_receipt_items_food_item_id_donor_id']
     (receipt_id, donor_id) [name: 'ix_receipt_items_receipt_id_donor_id']
   }
