@@ -8,9 +8,9 @@ namespace MoissonMontreal.Desktop.Design;
 public static class DesignData
 {
     /// <summary>
-    /// Main window ViewModel backed by a <see cref="FakeApiClient"/>.
+    /// Main window ViewModel backed by a <see cref="FakeApiClient"/> and a <see cref="FakeAuthService"/>.
     /// </summary>
-    public static MainViewModel Main { get; } = new(() => new FakeApiClient());
+    public static MainViewModel Main { get; } = new(() => new FakeApiClient(), new FakeAuthService());
 
     /// <summary>
     /// Home page ViewModel backed by a <see cref="FakeApiClient"/>.
@@ -20,5 +20,5 @@ public static class DesignData
     /// <summary>
     /// Login page ViewModel whose sign-in does nothing.
     /// </summary>
-    public static LoginViewModel Login { get; } = new(() => { });
+    public static LoginViewModel Login { get; } = new(new FakeAuthService(), () => { });
 }

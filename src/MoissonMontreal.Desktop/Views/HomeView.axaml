@@ -11,6 +11,7 @@
                Spacing="12">
         <TextBlock Text="{Binding Title}"/>
         <TextBlock Text="{Binding ApiStatus}"/>
+        <TextBlock Text="{Binding UserStatus}"/>
         <Button Content="Retry" Command="{Binding CheckApiCommand}"/>
     </StackPanel>           
 

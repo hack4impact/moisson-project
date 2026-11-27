@@ -61,6 +61,8 @@ public class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogItem>
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName(QualityClassForeignKey);
 
+        builder.Property(c => c.IsActive).HasDefaultValue(true).HasSentinel(true);
+
         builder.Property(c => c.CreatedAt).HasDefaultValueSql("now()");
     }
 }

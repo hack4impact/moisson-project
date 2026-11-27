@@ -9,7 +9,7 @@ The database has four parts:
 | Accounts | roles, users | Who can use the app and what each person is allowed to do |
 | Donations | donors, food_items, quality_classes | Who gave food, what they gave, when, and in what condition |
 | Tax receipts | receipts, receipt_items, receipt_status_changes | The receipts given to donors, the value of each food item on them, and every change of their status |
-| Price grid | catalog_items, prices | The types of food the app knows, and the price of each one over time |
+| Price grid | catalog_items, prices, bc_item_mappings, bc_item_mapping_changes | The types of food the app knows, the price of each one over time, and which Business Central item each one values |
 
 ## Diagram
 
@@ -82,6 +82,18 @@ More detail: [Receipt statuses](receipt-statuses.md).
 The types of food the app knows, such as bread or apples. A donation of bread and the next donation of bread are two different food items, but they share the same catalog item, and so the same price. Each catalog item has a name, a category, a unique Business Central code, a unit and a quality class.
 
 More detail: [Food catalog](catalog.md) and [Price grid](prices.md).
+
+### bc_item_mappings
+
+The remembered match between an item code from the Business Central donation export and the catalog item whose price values it. A person confirms each mapping once, and the next imports reuse it without asking again. A code can only have one mapping. When the catalog item is no longer active, the mapping must be reviewed.
+
+More detail: [Food catalog](catalog.md).
+
+### bc_item_mapping_changes
+
+The history of every mapping created, changed or deleted, with who did it and when. It keeps a copy of the code instead of a link, so the history stays after a mapping is deleted.
+
+More detail: [Food catalog](catalog.md).
 
 ### prices
 

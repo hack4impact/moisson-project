@@ -3,7 +3,7 @@
 // Matches the migrations 20261103000127_CreateUsersAndRoles, 20261105163138_CreateDonorsAndFoodItems,
 // 20261107041912_CreateReceipts, 20261110175320_CreateCatalogItemsAndPrices,
 // 20261112060008_CreateQualityClasses, 20261117040905_AddCatalogItemDetails,
-// 20261120031640_MakeCatalogItemQualityClassOptional and 20261123052442_AddReceiptStatus.
+// 20261120031640_MakeCatalogItemQualityClassOptional, 20261124214039_AddBcItemMappings and 20261123052442_AddReceiptStatus.
 
 Project moisson_montreal {
   database_type: 'PostgreSQL'
@@ -198,6 +198,7 @@ Table catalog_items {
   business_central_code varchar(50) [not null, note: 'Unique code used to match the item in Business Central']
   unit varchar(20) [not null, note: 'Free text until the price of one unit is decided']
   quality_class varchar(1) [note: 'Code of the quality class. The class lives on the catalog item. Empty until someone picks it, as for items imported from Business Central']
+  is_active boolean [not null, default: true, note: 'False once the item is removed from the price grid. The row is kept for history']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
   updated_at timestamptz [null, note: 'Stored in UTC, empty if never changed']
 
@@ -236,6 +237,47 @@ Table prices {
   Note: 'Price history: a new price is added as a new row, earlier prices are kept'
 }
 
+Table bc_item_mappings {
+  id uuid [not null, default: `gen_random_uuid()`]
+  business_central_code varchar(50) [not null, note: 'Item code found in the Business Central donation export']
+  catalog_item_id uuid [not null, note: 'Catalog item used to value this Business Central item']
+  confirmed_by_user_id integer [not null, note: 'User who last confirmed the mapping']
+  confirmed_at timestamptz [not null, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_bc_item_mappings']
+    business_central_code [unique, name: 'ix_bc_item_mappings_business_central_code', note: 'A code can only have one mapping']
+    catalog_item_id [name: 'ix_bc_item_mappings_catalog_item_id']
+    confirmed_by_user_id [name: 'ix_bc_item_mappings_confirmed_by_user_id']
+  }
+
+  checks {
+    `length(business_central_code) > 0` [name: 'ck_bc_item_mappings_business_central_code_not_empty']
+  }
+
+  Note: 'Confirmed matches between Business Central item codes and catalog items, reused on every import. A mapping to an inactive catalog item must be reviewed'
+}
+
+Table bc_item_mapping_changes {
+  id uuid [not null, default: `gen_random_uuid()`]
+  business_central_code varchar(50) [not null, note: 'Copied, not linked, so the history stays after a mapping is deleted']
+  action varchar(20) [not null, note: 'Created, Updated or Deleted']
+  old_catalog_item_id uuid [null, note: 'Empty when the mapping was created']
+  new_catalog_item_id uuid [null, note: 'Empty when the mapping was deleted']
+  changed_by_user_id integer [not null]
+  changed_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_bc_item_mapping_changes']
+    business_central_code [name: 'ix_bc_item_mapping_changes_business_central_code']
+    old_catalog_item_id [name: 'ix_bc_item_mapping_changes_old_catalog_item_id']
+    new_catalog_item_id [name: 'ix_bc_item_mapping_changes_new_catalog_item_id']
+    changed_by_user_id [name: 'ix_bc_item_mapping_changes_changed_by_user_id']
+  }
+
+  Note: 'History of every change made to a mapping, with its author'
+}
+
 Ref fk_users_roles_role_id: users.role_id > roles.id [delete: restrict]
 
 Ref fk_food_items_donors_donor_id: food_items.donor_id > donors.id [delete: restrict]
@@ -258,6 +300,16 @@ Ref fk_prices_catalog_items_catalog_item_id: prices.catalog_item_id > catalog_it
 
 Ref fk_catalog_items_quality_classes_quality_class: catalog_items.quality_class > quality_classes.code [delete: restrict]
 
+Ref fk_bc_item_mappings_catalog_items_catalog_item_id: bc_item_mappings.catalog_item_id > catalog_items.id [delete: restrict]
+
+Ref fk_bc_item_mappings_users_confirmed_by_user_id: bc_item_mappings.confirmed_by_user_id > users.id [delete: restrict]
+
+Ref fk_bc_item_mapping_changes_catalog_items_old_catalog_item_id: bc_item_mapping_changes.old_catalog_item_id > catalog_items.id [delete: restrict]
+
+Ref fk_bc_item_mapping_changes_catalog_items_new_catalog_item_id: bc_item_mapping_changes.new_catalog_item_id > catalog_items.id [delete: restrict]
+
+Ref fk_bc_item_mapping_changes_users_changed_by_user_id: bc_item_mapping_changes.changed_by_user_id > users.id [delete: restrict]
+
 TableGroup accounts {
   roles
   users
@@ -278,6 +330,8 @@ TableGroup tax_receipts {
 TableGroup price_grid {
   catalog_items
   prices
+  bc_item_mappings
+  bc_item_mapping_changes
 }
 
 Records roles(id, code, name) {

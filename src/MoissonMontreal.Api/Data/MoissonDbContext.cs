@@ -57,6 +57,16 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
     public DbSet<QualityClass> QualityClasses => Set<QualityClass>();
 
     /// <summary>
+    /// Confirmed matches between Business Central item codes and catalog items, reused on every import.
+    /// </summary>
+    public DbSet<BcItemMapping> BcItemMappings => Set<BcItemMapping>();
+
+    /// <summary>
+    /// History of every change made to a Business Central item mapping, with its author.
+    /// </summary>
+    public DbSet<BcItemMappingChange> BcItemMappingChanges => Set<BcItemMappingChange>();
+
+    /// <summary>
     /// Names every table, column, key and index in snake_case.
     /// </summary>
     /// <param name="optionsBuilder">Builder used to configure the context.</param>

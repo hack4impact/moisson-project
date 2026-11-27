@@ -29,6 +29,14 @@ public static class CatalogSaveErrors
         IsRefusedBy(exception, CatalogItemConfiguration.QualityClassForeignKey);
 
     /// <summary>
+    /// Tells whether a save failed because another mapping already uses the same Business Central code.
+    /// </summary>
+    /// <param name="exception">Error thrown by SaveChangesAsync.</param>
+    /// <returns>True if the unique index on the mapping code refused the save.</returns>
+    public static bool IsBcItemMappingCodeConflict(DbUpdateException exception) =>
+        IsRefusedBy(exception, BcItemMappingConfiguration.BusinessCentralCodeIndex);
+
+    /// <summary>
     /// Tells whether PostgreSQL refused a save because of a given constraint.
     /// </summary>
     /// <param name="exception">Error thrown by SaveChangesAsync.</param>
