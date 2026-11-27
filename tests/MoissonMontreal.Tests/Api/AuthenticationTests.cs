@@ -6,16 +6,21 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Tokens;
+using MoissonMontreal.Core.Authorization;
 using MoissonMontreal.Core.Dtos;
 using MoissonMontreal.Tests.Fixtures;
 
 namespace MoissonMontreal.Tests.Api;
 
-public class AuthenticationTests(AuthenticatedApiFactory factory) : IClassFixture<AuthenticatedApiFactory>
+// Every route now looks up the employee's account, so these tests need a real database.
+[Trait("Category", "Integration")]
+public class AuthenticationTests(PermissionsApiFactory factory) : IClassFixture<PermissionsApiFactory>
 {
     [Fact]
     public async Task Me_ReturnsCurrentUser_WhenTokenIsValid()
     {
+        await factory.ReplaceUsersWithAsync(RoleCodes.Supply);
+
         var response = await GetMeAsync(factory.CreateToken());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -32,6 +37,8 @@ public class AuthenticationTests(AuthenticatedApiFactory factory) : IClassFixtur
     [Fact]
     public async Task Me_ReturnsPreferredUsernameAsEmail_WhenEmailClaimIsMissing()
     {
+        await factory.ReplaceUsersWithAsync(RoleCodes.Supply);
+
         var response = await GetMeAsync(factory.CreateToken(email: null));
 
         var user = await response.Content.ReadFromJsonAsync<CurrentUserDto>();

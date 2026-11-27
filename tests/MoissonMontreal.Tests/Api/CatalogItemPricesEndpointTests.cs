@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
+using MoissonMontreal.Core.Authorization;
 using MoissonMontreal.Core.Dtos;
 using MoissonMontreal.Core.Entities;
 using MoissonMontreal.Tests.Fixtures;
@@ -10,10 +11,15 @@ using MoissonMontreal.Tests.Fixtures;
 namespace MoissonMontreal.Tests.Api;
 
 [Trait("Category", "Integration")]
-public class CatalogItemPricesEndpointTests(PermissionsApiFactory factory) : IClassFixture<PermissionsApiFactory>
+public class CatalogItemPricesEndpointTests(PermissionsApiFactory factory) : IClassFixture<PermissionsApiFactory>, IAsyncLifetime
 {
     private static readonly DateOnly November = new(2026, 11, 1);
     private static readonly DateOnly December = new(2026, 12, 1);
+
+    // Every route requires an active account, whatever its role.
+    public Task InitializeAsync() => factory.ReplaceUsersWithAsync(RoleCodes.Supply);
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task GetHistory_ReturnsEveryPrice_OldestFirst()

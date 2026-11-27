@@ -7,6 +7,7 @@ using MoissonMontreal.Api.Authorization;
 using MoissonMontreal.Api.Catalog;
 using MoissonMontreal.Api.Pricing;
 using MoissonMontreal.Api.Receipts;
+using MoissonMontreal.Core.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,9 +29,12 @@ builder.Services.Configure<JwtBearerOptions>(
     JwtBearerDefaults.AuthenticationScheme,
     options => options.MapInboundClaims = false);
 
+// A valid Microsoft token is not enough: the employee must also have an active account in the users table,
+// so a deactivated or never-added account is refused on every route, not only on routes with a permission.
 var accessAsUserPolicy = new AuthorizationPolicyBuilder()
     .RequireAuthenticatedUser()
     .RequireScope("access_as_user")
+    .AddRequirements(new PermissionRequirement(RoleCodes.All))
     .Build();
 
 builder.Services.AddAuthorizationBuilder()
