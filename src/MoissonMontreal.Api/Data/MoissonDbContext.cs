@@ -69,6 +69,11 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
     public DbSet<BcItemMappingChange> BcItemMappingChanges => Set<BcItemMappingChange>();
 
     /// <summary>
+    /// History of every change an administrator made to an employee's account, with the before and after values.
+    /// </summary>
+    public DbSet<UserAccountChange> UserAccountChanges => Set<UserAccountChange>();
+
+    /// <summary>
     /// Names every table, column, key and index in snake_case.
     /// </summary>
     /// <param name="optionsBuilder">Builder used to configure the context.</param>

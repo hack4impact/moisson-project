@@ -42,6 +42,26 @@ One row per employee who has been given access to the app.
 | created_at | Date and time the access was given |
 | updated_at | Date and time of the last change, empty if never changed |
 
+The table also uses PostgreSQL's hidden `xmin` column as a version number: it changes on every update, so if two administrators edit the same account at the same time, the second save is refused instead of silently overwriting the first one. No column is added for this.
+
+### user_account_changes
+
+One row per change an administrator made to an account. Only the values the change touched are filled: for example, removing access only fills the two active columns.
+
+| Column | Meaning |
+| --- | --- |
+| id | Identifier of the change, assigned automatically |
+| user_id | The account that was changed |
+| action | Created, Updated (name or email), RoleChanged, Deactivated or Reactivated |
+| old_email / new_email | Email before and after the change |
+| old_display_name / new_display_name | Name before and after the change |
+| old_role_id / new_role_id | Role before and after the change (see the roles table) |
+| old_is_active / new_is_active | Access before and after the change |
+| changed_by_user_id | The administrator who made the change |
+| changed_at | Date and time of the change |
+
+The history keeps old emails and names, including those of employees who left, so it is always known who did what.
+
 ## How the tables are linked
 
 Each user has exactly one role. A role can be given to many users. For example, several people in Finance all share the Finance role.
@@ -73,3 +93,15 @@ The very first Admin account cannot be added from the app, since no admin exists
 | Table settings | [UserConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/UserConfiguration.cs) and [RoleConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/RoleConfiguration.cs) |
 
 The SQL script is generated from the migration with `dotnet ef migrations script 0 CreateUsersAndRoles --project src/MoissonMontreal.Api --output docs/database/sql/0001_create_users_and_roles.sql`. It can be run on an empty Azure Database for PostgreSQL server and records itself in the migration history, so Entity Framework will not apply it a second time.
+
+### Account history
+
+| Item | Location |
+| --- | --- |
+| Entity Framework migration | [20261127164801_AddUserAccountChanges](../../src/MoissonMontreal.Api/Data/Migrations/20261127164801_AddUserAccountChanges.cs) |
+| Equivalent SQL script | [0011_add_user_account_changes.sql](sql/0011_add_user_account_changes.sql) |
+| Table settings | [UserAccountChangeConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/UserAccountChangeConfiguration.cs) |
+
+This migration adds the user_account_changes table. The version of users uses the system column `xmin`, so the SQL script adds no column to users.
+
+The SQL script is generated from the migration with `dotnet ef migrations script AddReceiptNumbers AddUserAccountChanges --project src/MoissonMontreal.Api --output docs/database/sql/0011_add_user_account_changes.sql`, and the byte order mark (BOM) at the start of the generated file is removed. It must be run after [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql).

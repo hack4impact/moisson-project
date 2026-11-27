@@ -730,6 +730,12 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id")
                         .HasName("pk_users");
 
@@ -748,6 +754,88 @@ namespace MoissonMontreal.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("ck_users_email_lowercase", "email = lower(email)");
                         });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.UserAccountChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("action");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("ChangedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<string>("NewDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("new_display_name");
+
+                    b.Property<string>("NewEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("new_email");
+
+                    b.Property<bool?>("NewIsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("new_is_active");
+
+                    b.Property<int?>("NewRoleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("new_role_id");
+
+                    b.Property<string>("OldDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("old_display_name");
+
+                    b.Property<string>("OldEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("old_email");
+
+                    b.Property<bool?>("OldIsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("old_is_active");
+
+                    b.Property<int?>("OldRoleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("old_role_id");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_account_changes");
+
+                    b.HasIndex("ChangedByUserId")
+                        .HasDatabaseName("ix_user_account_changes_changed_by_user_id");
+
+                    b.HasIndex("NewRoleId")
+                        .HasDatabaseName("ix_user_account_changes_new_role_id");
+
+                    b.HasIndex("OldRoleId")
+                        .HasDatabaseName("ix_user_account_changes_old_role_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_user_account_changes_user_id");
+
+                    b.ToTable("user_account_changes", (string)null);
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.BcItemMapping", b =>
@@ -913,6 +1001,39 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasConstraintName("fk_users_roles_role_id");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.UserAccountChange", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.User", "ChangedBy")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_account_changes_users_changed_by_user_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.Role", null)
+                        .WithMany()
+                        .HasForeignKey("NewRoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_user_account_changes_roles_new_role_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.Role", null)
+                        .WithMany()
+                        .HasForeignKey("OldRoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_user_account_changes_roles_old_role_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_account_changes_users_user_id");
+
+                    b.Navigation("ChangedBy");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.CatalogItem", b =>

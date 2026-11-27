@@ -49,4 +49,10 @@ public class User
     /// Date and time of the last change, or null if the user was never changed.
     /// </summary>
     public DateTimeOffset? UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Version of the row, changed by the database on every update. Two administrators editing the account at the same time
+    /// cannot silently overwrite each other: the second save sees a different version and is refused.
+    /// </summary>
+    public uint Version { get; set; }
 }

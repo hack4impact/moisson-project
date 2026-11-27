@@ -28,6 +28,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.CreatedAt).HasDefaultValueSql("now()");
 
+        // Mapped to the PostgreSQL system column xmin, which changes on every update, so no column is added.
+        builder.Property(u => u.Version).IsRowVersion();
+
         builder.HasOne(u => u.Role)
             .WithMany(r => r.Users)
             .HasForeignKey(u => u.RoleId)
