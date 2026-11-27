@@ -216,7 +216,7 @@ Each table comes from one of these migrations:
 | quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
 | catalog item details | [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs) | [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql) | [catalog.md](catalog.md) |
 | receipt status, receipt_status_changes | [20261127052039_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261127052039_AddReceiptStatus.cs) | [0009_add_receipt_status.sql](sql/0009_add_receipt_status.sql) | [receipts.md](receipts.md) |
-| receipt number, receipt_number_counters | [__NUMBERS_MIGRATION__](../../src/MoissonMontreal.Api/Data/Migrations/__NUMBERS_MIGRATION__.cs) | [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql) | [receipts.md](receipts.md) |
+| receipt number, receipt_number_counters | [20261127053347_AddReceiptNumbers](../../src/MoissonMontreal.Api/Data/Migrations/20261127053347_AddReceiptNumbers.cs) | [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql) | [receipts.md](receipts.md) |
 
 The SQL scripts must be run in order on an empty database.
 

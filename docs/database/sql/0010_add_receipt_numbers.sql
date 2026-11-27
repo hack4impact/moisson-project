@@ -14,9 +14,16 @@ VALUES ('DEN', 0);
 UPDATE receipts AS r
 SET receipt_number = 'DEN_' || lpad(numbered.position::text, 6, '0')
 FROM (
-    SELECT id, row_number() OVER (ORDER BY created_at, id) AS position
+    SELECT receipts.id,
+           row_number() OVER (ORDER BY issued.issued_at NULLS LAST, receipts.created_at, receipts.id) AS position
     FROM receipts
-    WHERE status = 'Issued'
+    LEFT JOIN (
+        SELECT receipt_id, min(changed_at) AS issued_at
+        FROM receipt_status_changes
+        WHERE to_status = 'Issued'
+        GROUP BY receipt_id
+    ) AS issued ON issued.receipt_id = receipts.id
+    WHERE issued.receipt_id IS NOT NULL OR receipts.status = 'Issued'
 ) AS numbered
 WHERE r.id = numbered.id;
 
@@ -33,7 +40,7 @@ ALTER TABLE receipts ADD CONSTRAINT ck_receipts_receipt_number_format CHECK (rec
 ALTER TABLE receipts ADD CONSTRAINT ck_receipts_receipt_number_only_once_issued CHECK (status IN ('Issued', 'Cancelled') OR receipt_number IS NULL);
 
 INSERT INTO "__EFMigrationsHistory" (migration_id, product_version)
-VALUES ('20261123233317_AddReceiptNumbers', '10.0.13');
+VALUES ('20261127053347_AddReceiptNumbers', '10.0.13');
 
 COMMIT;
 

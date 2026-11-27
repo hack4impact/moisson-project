@@ -9,8 +9,9 @@ namespace MoissonMontreal.Api.Data.Migrations
     {
         /// <summary>
         /// Adds receipt numbers. The UPDATE statements that number the receipts already issued are written by hand, not generated:
-        /// without them, an issued receipt created before this migration would fail the check added below. Keep them if this
-        /// migration is regenerated.
+        /// without them, an issued receipt created before this migration would fail the check added below. A receipt is numbered
+        /// if its history shows it was issued, even if it was cancelled since, in the order it was issued. A receipt marked Issued
+        /// without that history is numbered too, after the others, so the check never fails. Keep them if this migration is regenerated.
         /// </summary>
         /// <param name="migrationBuilder">Builder used to describe the operations.</param>
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -44,9 +45,16 @@ namespace MoissonMontreal.Api.Data.Migrations
                 UPDATE receipts AS r
                 SET receipt_number = 'DEN_' || lpad(numbered.position::text, 6, '0')
                 FROM (
-                    SELECT id, row_number() OVER (ORDER BY created_at, id) AS position
+                    SELECT receipts.id,
+                           row_number() OVER (ORDER BY issued.issued_at NULLS LAST, receipts.created_at, receipts.id) AS position
                     FROM receipts
-                    WHERE status = 'Issued'
+                    LEFT JOIN (
+                        SELECT receipt_id, min(changed_at) AS issued_at
+                        FROM receipt_status_changes
+                        WHERE to_status = 'Issued'
+                        GROUP BY receipt_id
+                    ) AS issued ON issued.receipt_id = receipts.id
+                    WHERE issued.receipt_id IS NOT NULL OR receipts.status = 'Issued'
                 ) AS numbered
                 WHERE r.id = numbered.id;
 

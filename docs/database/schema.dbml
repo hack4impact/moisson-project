@@ -4,7 +4,7 @@
 // 20261107041912_CreateReceipts, 20261110175320_CreateCatalogItemsAndPrices,
 // 20261112060008_CreateQualityClasses, 20261117040905_AddCatalogItemDetails,
 // 20261120031640_MakeCatalogItemQualityClassOptional, 20261124214039_AddBcItemMappings, 20261127052039_AddReceiptStatus
-// and __NUMBERS_MIGRATION__.
+// and 20261127053347_AddReceiptNumbers.
 
 Project moisson_montreal {
   database_type: 'PostgreSQL'

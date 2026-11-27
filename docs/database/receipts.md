@@ -59,7 +59,7 @@ The status changes that are allowed, and who can make each one, are decided by t
 
 ### receipt_number_counters
 
-The last receipt number given in each series. There is one series for now: DEN, for food donations. The migration creates its row with 0, so the first receipt issued gets DEN_000001.
+The last receipt number given in each series. There is one series for now: DEN, for food donations. The migration creates its row with 0, so the first receipt issued gets DEN_000001. If receipts were issued before the migration, it numbers them first: every receipt whose history shows it was issued, even if it was cancelled since, in the order it was issued.
 
 | Column | Meaning |
 | --- | --- |
@@ -155,7 +155,7 @@ A cancelled receipt keeps its lines, so the original stays readable. Cancelling 
 | Entity Framework migration | [20261107041912_CreateReceipts](../../src/MoissonMontreal.Api/Data/Migrations/20261107041912_CreateReceipts.cs) |
 | Equivalent SQL script | [0003_create_receipts.sql](sql/0003_create_receipts.sql) |
 | Table settings | [ReceiptConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptConfiguration.cs) and [ReceiptItemConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptItemConfiguration.cs) |
-| Receipt number migration | [__NUMBERS_MIGRATION__](../../src/MoissonMontreal.Api/Data/Migrations/__NUMBERS_MIGRATION__.cs), with [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql) and [ReceiptNumberCounterConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptNumberCounterConfiguration.cs) |
+| Receipt number migration | [20261127053347_AddReceiptNumbers](../../src/MoissonMontreal.Api/Data/Migrations/20261127053347_AddReceiptNumbers.cs), with [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql) and [ReceiptNumberCounterConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptNumberCounterConfiguration.cs) |
 | Status and history migration | [20261127052039_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261127052039_AddReceiptStatus.cs), with [0009_add_receipt_status.sql](sql/0009_add_receipt_status.sql) and [ReceiptStatusChangeConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/ReceiptStatusChangeConfiguration.cs) |
 
 The SQL script is generated from the migration with `dotnet ef migrations script CreateDonorsAndFoodItems CreateReceipts --project src/MoissonMontreal.Api --output docs/database/sql/0003_create_receipts.sql`. It must be run after [0001_create_users_and_roles.sql](sql/0001_create_users_and_roles.sql) and [0002_create_donors_and_food_items.sql](sql/0002_create_donors_and_food_items.sql). It records itself in the migration history, so Entity Framework will not apply it a second time.

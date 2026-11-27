@@ -25,25 +25,34 @@ public class ReceiptNumberMigrationTests(PostgresFixture postgres) : IClassFixtu
     }
 
     [Fact]
-    public async Task Migrate_NumbersTheReceiptsIssuedBeforeIt_InTheOrderTheyWereCreated()
+    public async Task Migrate_NumbersTheReceiptsIssuedBeforeIt_InTheOrderTheyWereIssued()
     {
         await using var context = CreateContext("receipt_numbers_existing");
-        await context.GetService<IMigrator>().MigrateAsync("20261123052442_AddReceiptStatus");
+        await context.GetService<IMigrator>().MigrateAsync("20261127052039_AddReceiptStatus");
         await context.Database.ExecuteSqlRawAsync("""
+            INSERT INTO users (email, display_name, role_id) VALUES ('supply@moissonmontreal.org', 'Sam Supply', 1);
             INSERT INTO donors (name) VALUES ('Boulangerie Saint-Laurent');
             INSERT INTO receipts (donor_id, total_amount, status, created_at)
-            SELECT id, 10, 'Issued', '2026-11-02T10:00:00Z' FROM donors;
+            SELECT id, 10, 'Issued', '2026-11-01T10:00:00Z' FROM donors;
             INSERT INTO receipts (donor_id, total_amount, status, created_at)
-            SELECT id, 20, 'Issued', '2026-11-01T10:00:00Z' FROM donors;
+            SELECT id, 20, 'Cancelled', '2026-11-02T10:00:00Z' FROM donors;
             INSERT INTO receipts (donor_id, total_amount, status, created_at)
             SELECT id, 30, 'Approved', '2026-11-03T10:00:00Z' FROM donors;
+            INSERT INTO receipts (donor_id, total_amount, status, created_at)
+            SELECT id, 40, 'Issued', '2026-11-04T10:00:00Z' FROM donors;
+            INSERT INTO receipt_status_changes (receipt_id, from_status, to_status, changed_by_user_id, changed_at)
+            SELECT r.id, 'Approved', 'Issued', u.id, '2026-11-05T10:00:00Z' FROM receipts r, users u WHERE r.total_amount = 10;
+            INSERT INTO receipt_status_changes (receipt_id, from_status, to_status, changed_by_user_id, changed_at)
+            SELECT r.id, 'Approved', 'Issued', u.id, '2026-11-03T10:00:00Z' FROM receipts r, users u WHERE r.total_amount = 20;
+            INSERT INTO receipt_status_changes (receipt_id, from_status, to_status, changed_by_user_id, changed_at, reason)
+            SELECT r.id, 'Issued', 'Cancelled', u.id, '2026-11-06T10:00:00Z', 'Wrong quantity' FROM receipts r, users u WHERE r.total_amount = 20;
             """);
 
         await context.Database.MigrateAsync();
 
         var numbers = await context.Receipts.OrderBy(r => r.TotalAmount).Select(r => r.ReceiptNumber).ToListAsync();
-        Assert.Equal(["DEN_000002", "DEN_000001", null], numbers);
-        Assert.Equal(2, (await context.ReceiptNumberCounters.SingleAsync()).LastNumber);
+        Assert.Equal(["DEN_000002", "DEN_000001", null, "DEN_000003"], numbers);
+        Assert.Equal(3, (await context.ReceiptNumberCounters.SingleAsync()).LastNumber);
     }
 
     [Fact]
