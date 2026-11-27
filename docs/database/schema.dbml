@@ -3,7 +3,7 @@
 // Matches the migrations 20261103000127_CreateUsersAndRoles, 20261105163138_CreateDonorsAndFoodItems,
 // 20261107041912_CreateReceipts, 20261110175320_CreateCatalogItemsAndPrices,
 // 20261112060008_CreateQualityClasses, 20261117040905_AddCatalogItemDetails,
-// 20261120031640_MakeCatalogItemQualityClassOptional and 20261124214039_AddBcItemMappings.
+// 20261120031640_MakeCatalogItemQualityClassOptional, 20261124214039_AddBcItemMappings and 20261127052039_AddReceiptStatus.
 
 Project moisson_montreal {
   database_type: 'PostgreSQL'
@@ -123,6 +123,7 @@ Table receipts {
   total_amount numeric(12,2) [not null, note: 'Sum of the rounded line values, in dollars']
   receipt_date date [not null, default: `(now() AT TIME ZONE 'America/Montreal')::date`, note: 'Date in Montreal time, used for the tax year']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+  status varchar(30) [not null, default: 'Draft', note: 'Where the receipt is in the approval process. See receipt-statuses.md']
 
   indexes {
     id [pk, name: 'pk_receipts']
@@ -132,9 +133,36 @@ Table receipts {
 
   checks {
     `total_amount >= 0` [name: 'ck_receipts_total_amount_not_negative']
+    `status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')` [name: 'ck_receipts_status_valid']
   }
 
   Note: 'Tax receipts given to donors'
+}
+
+Table receipt_status_changes {
+  id uuid [not null, default: `gen_random_uuid()`]
+  receipt_id uuid [not null]
+  from_status varchar(30) [not null, note: 'Status before the change']
+  to_status varchar(30) [not null, note: 'Status after the change']
+  changed_by_user_id integer [not null, note: 'Employee who made the change']
+  changed_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+  reason varchar(1000) [null, note: 'Required when a receipt is refused or cancelled']
+
+  indexes {
+    id [pk, name: 'pk_receipt_status_changes']
+    (receipt_id, changed_at) [name: 'ix_receipt_status_changes_receipt_id_changed_at']
+    changed_by_user_id [name: 'ix_receipt_status_changes_changed_by_user_id']
+  }
+
+  checks {
+    `from_status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')` [name: 'ck_receipt_status_changes_from_status_valid']
+    `to_status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')` [name: 'ck_receipt_status_changes_to_status_valid']
+    `from_status <> to_status` [name: 'ck_receipt_status_changes_status_differs']
+    `length(reason) > 0` [name: 'ck_receipt_status_changes_reason_not_empty']
+    `to_status NOT IN ('Draft', 'Cancelled') OR reason IS NOT NULL` [name: 'ck_receipt_status_changes_reason_required']
+  }
+
+  Note: 'One row per status change of a receipt: who made it, when, and why'
 }
 
 Table receipt_items {
@@ -145,10 +173,11 @@ Table receipt_items {
   unit varchar(20) [not null, note: 'Copied from the food item when the receipt was made']
   unit_price numeric(12,4) [not null, note: 'Price of one unit when the receipt was made']
   quality_percent numeric(5,2) [not null, note: 'A = 100, B = 50 to 75, C = 0']
+  receipt_cancelled boolean [not null, default: false, note: 'True once the receipt is cancelled. The line is kept, but the food item is free again']
 
   indexes {
     (receipt_id, food_item_id) [pk, name: 'pk_receipt_items']
-    food_item_id [unique, name: 'ix_receipt_items_food_item_id', note: 'A food item can only be on one receipt']
+    food_item_id [unique, name: 'ix_receipt_items_food_item_id', note: 'Partial index where `NOT receipt_cancelled`: a food item can be on only one receipt that is not cancelled']
     (food_item_id, donor_id) [name: 'ix_receipt_items_food_item_id_donor_id']
     (receipt_id, donor_id) [name: 'ix_receipt_items_receipt_id_donor_id']
   }
@@ -264,6 +293,10 @@ Ref fk_receipt_items_receipts_receipt_id_donor_id: receipt_items.(receipt_id, do
 
 Ref fk_receipt_items_food_items_food_item_id_donor_id: receipt_items.(food_item_id, donor_id) > food_items.(id, donor_id) [delete: restrict]
 
+Ref fk_receipt_status_changes_receipts_receipt_id: receipt_status_changes.receipt_id > receipts.id [delete: restrict]
+
+Ref fk_receipt_status_changes_users_changed_by_user_id: receipt_status_changes.changed_by_user_id > users.id [delete: restrict]
+
 Ref fk_prices_catalog_items_catalog_item_id: prices.catalog_item_id > catalog_items.id [delete: restrict]
 
 Ref fk_catalog_items_quality_classes_quality_class: catalog_items.quality_class > quality_classes.code [delete: restrict]
@@ -292,6 +325,7 @@ TableGroup donations {
 TableGroup tax_receipts {
   receipts
   receipt_items
+  receipt_status_changes
 }
 
 TableGroup price_grid {

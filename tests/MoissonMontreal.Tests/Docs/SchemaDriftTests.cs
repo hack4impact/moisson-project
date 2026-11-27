@@ -16,6 +16,8 @@ public class SchemaDriftTests
         { "missing default", "created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']\n\n  indexes {\n    id [pk, name: 'pk_donors']", "created_at timestamptz [not null, note: 'Stored in UTC']\n\n  indexes {\n    id [pk, name: 'pk_donors']", "donors.created_at: default" },
         { "missing increment", "id integer [not null, increment]", "id integer [not null]", "users.id: increment" },
         { "renamed index", "name: 'ix_receipt_items_food_item_id',", "name: 'ix_receipt_items_food_item',", "Index ix_receipt_items_food_item_id is missing from the diagram" },
+        { "other index condition", "where `NOT receipt_cancelled`", "where `receipt_cancelled`", "Index ix_receipt_items_food_item_id: condition" },
+        { "index condition left out", "note: 'Partial index where `NOT receipt_cancelled`: a food item can be on only one receipt that is not cancelled'", "note: 'A food item can be on only one receipt'", "Index ix_receipt_items_food_item_id: condition" },
         { "duplicates allowed", "food_item_id [unique, name: 'ix_receipt_items_food_item_id'", "food_item_id [name: 'ix_receipt_items_food_item_id'", "Index ix_receipt_items_food_item_id: unique" },
         { "index columns in another order", "(receipt_id, food_item_id) [pk", "(food_item_id, receipt_id) [pk", "Index pk_receipt_items: columns" },
         { "missing check", "    `percentage BETWEEN min_percentage AND max_percentage` [name: 'ck_quality_classes_percentage_in_range']\n", "", "Check ck_quality_classes_percentage_in_range is missing from the diagram" },
