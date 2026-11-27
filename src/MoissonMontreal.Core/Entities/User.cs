@@ -6,6 +6,16 @@ namespace MoissonMontreal.Core.Entities;
 public class User
 {
     /// <summary>
+    /// Longest email stored for a user.
+    /// </summary>
+    public const int EmailMaxLength = 256;
+
+    /// <summary>
+    /// Longest name stored for a user.
+    /// </summary>
+    public const int DisplayNameMaxLength = 200;
+
+    /// <summary>
     /// Identifier of the user in the app, assigned by the database.
     /// </summary>
     public int Id { get; set; }

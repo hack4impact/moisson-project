@@ -26,11 +26,11 @@ public class UserAccountChangeConfiguration : IEntityTypeConfiguration<UserAccou
             .HasConversion<string>()
             .HasMaxLength(ActionMaxLength);
 
-        builder.Property(c => c.OldEmail).HasMaxLength(256);
-        builder.Property(c => c.NewEmail).HasMaxLength(256);
+        builder.Property(c => c.OldEmail).HasMaxLength(User.EmailMaxLength);
+        builder.Property(c => c.NewEmail).HasMaxLength(User.EmailMaxLength);
 
-        builder.Property(c => c.OldDisplayName).HasMaxLength(200);
-        builder.Property(c => c.NewDisplayName).HasMaxLength(200);
+        builder.Property(c => c.OldDisplayName).HasMaxLength(User.DisplayNameMaxLength);
+        builder.Property(c => c.NewDisplayName).HasMaxLength(User.DisplayNameMaxLength);
 
         builder.Property(c => c.ChangedAt).HasDefaultValueSql("now()");
 
