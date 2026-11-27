@@ -275,12 +275,45 @@ public class AccountEndpointTests(PermissionsApiFactory factory) : IClassFixture
         Assert.Contains("Version", await response.Content.ReadAsStringAsync());
     }
 
-    // ReplaceUsersWithAsync deletes every user, and the history points to users, so the history is emptied first.
+    [Fact]
+    public async Task DataCreatedByAnEmployee_StaysAttributedToThem_AfterDeactivationAndReactivation()
+    {
+        using var admin = await SignInAsync();
+        var account = await CreateAsync(admin, "attributed@moissonmontreal.org");
+        Guid catalogItemId;
+        await using (var context = factory.CreateDbContext())
+        {
+            var item = TestCatalogItems.Create("Poivron");
+            context.CatalogItems.Add(item);
+            await context.SaveChangesAsync();
+            catalogItemId = item.Id;
+        }
+
+        using (var employee = ClientFor(Guid.NewGuid(), "attributed@moissonmontreal.org"))
+        {
+            var mapping = await employee.PostAsJsonAsync("/api/bc-item-mappings", new BcItemMappingCreateRequest("ATTRIBUTED-1", catalogItemId));
+            Assert.Equal(HttpStatusCode.Created, mapping.StatusCode);
+        }
+
+        var linked = (await admin.GetFromJsonAsync<AccountDto>($"{Url}/{account.Id}"))!;
+        var deactivated = await admin.PostAsJsonAsync($"{Url}/{account.Id}/deactivate", new AccountVersionRequest(linked.Version));
+        var reactivate = await admin.PostAsJsonAsync(
+            $"{Url}/{account.Id}/reactivate",
+            new AccountVersionRequest((await deactivated.Content.ReadFromJsonAsync<AccountDto>())!.Version));
+        Assert.Equal(HttpStatusCode.OK, reactivate.StatusCode);
+
+        var saved = await admin.GetFromJsonAsync<BcItemMappingDto>("/api/bc-item-mappings/ATTRIBUTED-1");
+        Assert.Equal((account.Id, account.DisplayName), (saved!.ConfirmedByUserId, saved.ConfirmedByName));
+    }
+
+    // ReplaceUsersWithAsync deletes every user, and the history and the BC mappings point to users, so they are emptied first.
     private async Task<HttpClient> SignInAsync(string role = RoleCodes.Admin)
     {
         await using (var context = factory.CreateDbContext())
         {
             await context.UserAccountChanges.ExecuteDeleteAsync();
+            await context.BcItemMappingChanges.ExecuteDeleteAsync();
+            await context.BcItemMappings.ExecuteDeleteAsync();
         }
 
         await factory.ReplaceUsersWithAsync(role);
