@@ -77,8 +77,11 @@ public class CatalogItemQualityClassOptionalMigrationTests(PostgresFixture postg
 
         await using var context = CreateContext(database);
         Assert.EndsWith("_MakeCatalogItemQualityClassOptional", (await context.Database.GetAppliedMigrationsAsync()).Last());
-        var item = await context.CatalogItems.SingleAsync(i => i.BusinessCentralCode == "BC-NO-CLASS");
-        Assert.Null(item.QualityClassCode);
+        var qualityClass = await context.CatalogItems
+            .Where(i => i.BusinessCentralCode == "BC-NO-CLASS")
+            .Select(i => i.QualityClassCode)
+            .SingleAsync();
+        Assert.Null(qualityClass);
     }
 
     [Fact]

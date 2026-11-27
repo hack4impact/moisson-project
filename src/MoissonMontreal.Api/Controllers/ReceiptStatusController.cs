@@ -69,10 +69,6 @@ public class ReceiptStatusController(ReceiptStatusService statuses) : Controller
             problem.Extensions["allowedActions"] = e.AllowedActions;
             return Conflict(problem);
         }
-        catch (ReceiptStatusChangedException e)
-        {
-            return Conflict(CreateProblem(StatusCodes.Status409Conflict, "Receipt changed in the meantime", e.Message));
-        }
         catch (InvalidReceiptReasonException e)
         {
             return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]>

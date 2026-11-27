@@ -1,5 +1,9 @@
 START TRANSACTION;
+DROP INDEX ix_receipt_items_food_item_id;
+
 ALTER TABLE receipts ADD status character varying(30) NOT NULL DEFAULT 'Draft';
+
+ALTER TABLE receipt_items ADD receipt_cancelled boolean NOT NULL DEFAULT FALSE;
 
 CREATE TABLE receipt_status_changes (
     id uuid NOT NULL DEFAULT (gen_random_uuid()),
@@ -21,12 +25,14 @@ CREATE TABLE receipt_status_changes (
 
 ALTER TABLE receipts ADD CONSTRAINT ck_receipts_status_valid CHECK (status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled'));
 
+CREATE UNIQUE INDEX ix_receipt_items_food_item_id ON receipt_items (food_item_id) WHERE NOT receipt_cancelled;
+
 CREATE INDEX ix_receipt_status_changes_changed_by_user_id ON receipt_status_changes (changed_by_user_id);
 
 CREATE INDEX ix_receipt_status_changes_receipt_id_changed_at ON receipt_status_changes (receipt_id, changed_at);
 
 INSERT INTO "__EFMigrationsHistory" (migration_id, product_version)
-VALUES ('20261123052442_AddReceiptStatus', '10.0.13');
+VALUES ('20261127052039_AddReceiptStatus', '10.0.13');
 
 COMMIT;
 

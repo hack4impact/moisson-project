@@ -42,6 +42,7 @@ builder.Services.AddScoped<UserLookupService>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 builder.Services.AddScoped<PriceService>();
 builder.Services.AddScoped<CatalogImporter>();
+builder.Services.AddScoped<BcItemMappingService>();
 builder.Services.AddScoped<DonationValueService>();
 builder.Services.AddScoped<ReceiptStatusService>();
 

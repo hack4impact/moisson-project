@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MoissonMontreal.Desktop.Services;
@@ -16,24 +17,31 @@ public partial class MainViewModel : ViewModelBase
     private readonly Func<IApiClient> _createApiClient;
 
     /// <summary>
+    /// Signs the user in and out, shared by the whole app.
+    /// </summary>
+    private readonly IAuthService _authService;
+
+    /// <summary>
     /// Page currently shown in the main window.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSignedIn))]
-    public partial ViewModelBase CurrentPage  {get; set;}
+    public partial ViewModelBase CurrentPage { get; set; }
 
     /// <summary>
-    /// <c>true</c> when the user is past the login page; shows the navigation bar and the Sign out button.
+    /// <c>true</c> once the user has signed in, <c>false</c> after sign-out. Shows the navigation bar and the Sign out button.
     /// </summary>
-    public bool IsSignedIn => CurrentPage is not LoginViewModel;
+    [ObservableProperty]
+    public partial bool IsSignedIn { get; set; }
 
     /// <summary>
     /// Creates the main ViewModel and shows the login page.
     /// </summary>
     /// <param name="createApiClient">Function that returns a new API client on each call.</param>
-    public MainViewModel(Func<IApiClient> createApiClient)
+    /// <param name="authService">Service that signs the user in and out.</param>
+    public MainViewModel(Func<IApiClient> createApiClient, IAuthService authService)
     {
         _createApiClient = createApiClient;
+        _authService = authService;
         CurrentPage = CreateLoginPage();
     }
 
@@ -41,7 +49,39 @@ public partial class MainViewModel : ViewModelBase
     /// Creates the login page, which opens the home page after sign-in.
     /// </summary>
     /// <returns>A new login page.</returns>
-    private LoginViewModel CreateLoginPage() => new LoginViewModel(ShowHome);
+    private LoginViewModel CreateLoginPage() => new LoginViewModel(_authService, OnSignedIn);
+
+    /// <summary>
+    /// Marks the user as signed in and shows the home page.
+    /// </summary>
+    private void OnSignedIn()
+    {
+        IsSignedIn = true;
+        ShowHome();
+    }
+
+    /// <summary>
+    /// Signs the user back in without any window if a session was saved, and shows the home page.
+    /// Stays on the login page if there is no saved session or Microsoft cannot be reached.
+    /// </summary>
+    [RelayCommand]
+    private async Task RestoreSessionAsync()
+    {
+        try
+        {
+            if (await _authService.TrySignInSilentlyAsync())
+            {
+                OnSignedIn();
+            }
+        }
+        catch (Exception)
+        {
+            if (CurrentPage is LoginViewModel loginPage)
+            {
+                loginPage.ErrorMessage = "Could not restore your session. Check your internet connection and sign in again.";
+            }
+        }
+    }
 
     /// <summary>
     /// Shows the home page with a new API client.
@@ -71,11 +111,23 @@ public partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Signs the user out and goes back to the login page.
+    /// Signs the user out (removes the saved session) and goes back to the login page.
+    /// If the saved session cannot be removed, the login page shows an error message.
     /// </summary>
     [RelayCommand]
-    private void SignOut()
+    private async Task SignOutAsync()
     {
-        CurrentPage = CreateLoginPage();
+        var loginPage = CreateLoginPage();
+        try
+        {
+            await _authService.SignOutAsync();
+        }
+        catch (Exception)
+        {
+            loginPage.ErrorMessage = "Sign-out failed: your session may still be saved on this computer. Restart the app and sign out again.";
+        }
+
+        IsSignedIn = false;
+        CurrentPage = loginPage;
     }
 }

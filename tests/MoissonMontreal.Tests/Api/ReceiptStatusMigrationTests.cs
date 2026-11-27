@@ -58,7 +58,7 @@ public class ReceiptStatusMigrationTests(PostgresFixture postgres) : IClassFixtu
     {
         await using var context = CreateContext("receipt_status_existing");
         var migrator = context.GetService<IMigrator>();
-        await migrator.MigrateAsync("20261120031640_MakeCatalogItemQualityClassOptional");
+        await migrator.MigrateAsync("20261124214039_AddBcItemMappings");
         await context.Database.ExecuteSqlRawAsync("""
             INSERT INTO donors (name) VALUES ('Boulangerie Saint-Laurent');
             INSERT INTO receipts (donor_id, total_amount) SELECT id, 10 FROM donors;

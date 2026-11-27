@@ -9,7 +9,7 @@ The database has four parts:
 | Accounts | roles, users | Who can use the app and what each person is allowed to do |
 | Donations | donors, food_items, quality_classes | Who gave food, what they gave, when, and in what condition |
 | Tax receipts | receipts, receipt_items, receipt_status_changes, receipt_number_counters | The receipts given to donors, the value of each food item on them, every change of their status, and their numbers |
-| Price grid | catalog_items, prices | The types of food the app knows, and the price of each one over time |
+| Price grid | catalog_items, prices, bc_item_mappings, bc_item_mapping_changes | The types of food the app knows, the price of each one over time, and which Business Central item each one values |
 
 ## Diagram
 
@@ -89,6 +89,18 @@ The types of food the app knows, such as bread or apples. A donation of bread an
 
 More detail: [Food catalog](catalog.md) and [Price grid](prices.md).
 
+### bc_item_mappings
+
+The remembered match between an item code from the Business Central donation export and the catalog item whose price values it. A person confirms each mapping once, and the next imports reuse it without asking again. A code can only have one mapping. When the catalog item is no longer active, the mapping must be reviewed.
+
+More detail: [Food catalog](catalog.md).
+
+### bc_item_mapping_changes
+
+The history of every mapping created, changed or deleted, with who did it and when. It keeps a copy of the code instead of a link, so the history stays after a mapping is deleted.
+
+More detail: [Food catalog](catalog.md).
+
 ### prices
 
 The price of one unit of each catalog item, and the date from which it applies. Prices are never replaced: when a price changes, a new row is added with a new effective date, and the earlier prices stay. That way, a past donation can always be valued at the price that applied on the day it was received.
@@ -116,7 +128,7 @@ Each line is rounded to the cent, and an amount exactly halfway, such as $0.225,
 The database itself refuses anything that would break these rules, even if there were a mistake in the app.
 
 **No duplicate receipts**
-- A food item can be on only one receipt, so the same donation cannot get two tax receipts.
+- A food item can be on only one receipt that is not cancelled, so the same donation cannot get two valid tax receipts. Once a receipt is cancelled, its food items can go on a new receipt, and the cancelled receipt keeps its lines.
 - The same food item cannot appear twice on one receipt.
 
 **One price per day**
@@ -181,7 +193,6 @@ These parts of the project are planned in their own issues and will add tables l
 | Replacement receipts, linked to the receipt they cancel | To plan |
 | PDF receipt | #40 |
 
-When cancelled and replacement receipts are added, the rule "a food item can be on only one receipt" will be adjusted so that a replacement receipt can list the same food as the receipt it replaces.
 
 ## Words used on this page
 
@@ -204,11 +215,11 @@ Each table comes from one of these migrations:
 | catalog_items, prices | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
 | quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
 | catalog item details | [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs) | [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql) | [catalog.md](catalog.md) |
-| receipt status, receipt_status_changes | [20261123052442_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261123052442_AddReceiptStatus.cs) | [0008_add_receipt_status.sql](sql/0008_add_receipt_status.sql) | [receipts.md](receipts.md) |
-| receipt number, receipt_number_counters | [20261123233317_AddReceiptNumbers](../../src/MoissonMontreal.Api/Data/Migrations/20261123233317_AddReceiptNumbers.cs) | [0009_add_receipt_numbers.sql](sql/0009_add_receipt_numbers.sql) | [receipts.md](receipts.md) |
+| receipt status, receipt_status_changes | [20261127052039_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261127052039_AddReceiptStatus.cs) | [0009_add_receipt_status.sql](sql/0009_add_receipt_status.sql) | [receipts.md](receipts.md) |
+| receipt number, receipt_number_counters | [__NUMBERS_MIGRATION__](../../src/MoissonMontreal.Api/Data/Migrations/__NUMBERS_MIGRATION__.cs) | [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql) | [receipts.md](receipts.md) |
 
 The SQL scripts must be run in order on an empty database.
 
 Every date and time is converted to UTC before it is written, by [UtcDateTimeOffsetConverter.cs](../../src/MoissonMontreal.Api/Data/UtcDateTimeOffsetConverter.cs), which [MoissonDbContext.cs](../../src/MoissonMontreal.Api/Data/MoissonDbContext.cs) applies to every DateTimeOffset column.
 
-The tests in [SchemaDiagramTests.cs](../../tests/MoissonMontreal.Tests/Docs/SchemaDiagramTests.cs) build an empty database from the migrations and check that every .dbml file in this folder matches it exactly: tables, columns, types, defaults, keys, indexes, checks, links and the roles data. Defaults and checks are compared by their full expression, after PostgreSQL rewrites the diagram's version in its own spelling. dbdiagram.io cannot draw a partial index (an index with a WHERE condition) or an index on an expression, so the tests fail if a migration adds one. When that happens, for example for replacement receipts (#31), describe the condition in the index note and extend the tests. Run them with `dotnet test --filter "FullyQualifiedName~MoissonMontreal.Tests.Docs"`. When a migration changes the schema, update [schema.dbml](schema.dbml), the .dbml of that part, and the images.
+The tests in [SchemaDiagramTests.cs](../../tests/MoissonMontreal.Tests/Docs/SchemaDiagramTests.cs) build an empty database from the migrations and check that every .dbml file in this folder matches it exactly: tables, columns, types, defaults, keys, indexes, checks, links and the roles data. Defaults and checks are compared by their full expression, after PostgreSQL rewrites the diagram's version in its own spelling. dbdiagram.io cannot draw a partial index (an index with a WHERE condition), so its condition goes at the start of the index note, as Partial index where `condition`, which the tests read and compare with the database. An index on an expression cannot be described yet, so the tests fail if a migration adds one. Run them with `dotnet test --filter "FullyQualifiedName~MoissonMontreal.Tests.Docs"`. When a migration changes the schema, update [schema.dbml](schema.dbml), the .dbml of that part, and the images.

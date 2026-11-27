@@ -22,11 +22,11 @@ public class SchemaDiagramTests(PostgresFixture postgres) : IClassFixture<Postgr
         { "default: true", "default: false", "users.is_active: default" }
     };
 
-    public static TheoryData<string, string> IndexesADiagramCannotShow => new()
+    public static TheoryData<string, string> IndexChangesInTheDatabase => new()
     {
         {
             "DROP INDEX ix_receipt_items_food_item_id; CREATE UNIQUE INDEX ix_receipt_items_food_item_id ON receipt_items (food_item_id) WHERE quantity > 0",
-            "Index ix_receipt_items_food_item_id: condition is none in the diagram but quantity > 0::numeric in the database"
+            "Index ix_receipt_items_food_item_id: condition is NOT receipt_cancelled in the diagram but quantity > 0::numeric in the database"
         },
         {
             "DROP INDEX ix_users_email; CREATE UNIQUE INDEX ix_users_email ON users (lower(email::text))",
@@ -81,7 +81,7 @@ public class SchemaDiagramTests(PostgresFixture postgres) : IClassFixture<Postgr
     }
 
     [Theory]
-    [MemberData(nameof(IndexesADiagramCannotShow))]
+    [MemberData(nameof(IndexChangesInTheDatabase))]
     public async Task Diagram_ReportsAPartialOrExpressionIndex(string change, string expected)
     {
         var diagram = await ReadDiagramAsync(FullSchema);
