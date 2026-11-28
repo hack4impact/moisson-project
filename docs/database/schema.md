@@ -43,7 +43,9 @@ More detail: [Users and roles](users-roles.md).
 
 ### donors
 
-The organizations and people who give food: name, address, postal code and contact person. This is the information printed on the tax receipt. Two donors can have the same name, for example two branches of the same grocery chain.
+The organizations and people who give food: name, type (individual or organization), street address, city, province, postal code, contact person, email, phone, notes and Business Central code. The name and the address are printed on the tax receipt. Two donors can have the same name, for example two branches of the same grocery chain, but two donors cannot share a Business Central code.
+
+More detail: [Donor profiles](donors.md).
 
 ### food_items
 
@@ -166,6 +168,8 @@ The database itself refuses anything that would break these rules, even if there
 - A receipt total cannot be negative.
 - Donor names, food names, catalog item names, categories, Business Central codes and units cannot be empty.
 - Two catalog items cannot have the same Business Central code.
+- A donor is an individual or an organization.
+- Two donors cannot have the same Business Central code, and a donor's code cannot be empty when it is set.
 
 **Receipt numbers**
 - Two receipts cannot have the same number.
@@ -223,6 +227,7 @@ Each table comes from one of these migrations:
 | catalog item details | [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs) | [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql) | [catalog.md](catalog.md) |
 | receipt status, receipt_status_changes | [20261127052039_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261127052039_AddReceiptStatus.cs) | [0009_add_receipt_status.sql](sql/0009_add_receipt_status.sql) | [receipts.md](receipts.md) |
 | receipt number, receipt_number_counters | [20261127053347_AddReceiptNumbers](../../src/MoissonMontreal.Api/Data/Migrations/20261127053347_AddReceiptNumbers.cs) | [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql) | [receipts.md](receipts.md) |
+| donor profile | [20261128005314_AddDonorProfile](../../src/MoissonMontreal.Api/Data/Migrations/20261128005314_AddDonorProfile.cs) | [0011_add_donor_profile.sql](sql/0011_add_donor_profile.sql) | [donors.md](donors.md) |
 
 The SQL scripts must be run in order on an empty database.
 

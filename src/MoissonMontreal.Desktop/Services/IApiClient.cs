@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MoissonMontreal.Core.Dtos;
@@ -81,4 +82,29 @@ public interface IApiClient
     /// <param name="cancellationToken">Lets the caller stop the request early.</param>
     /// <returns>The reactivated account, or a failure with a message.</returns>
     Task<ApiResult<AccountDto>> ReactivateAccountAsync(int id, uint version, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets one donor.
+    /// </summary>
+    /// <param name="id">Identifier of the donor.</param>
+    /// <param name="cancellationToken">Lets the caller stop the request early.</param>
+    /// <returns>The donor, or the reason it could not be read.</returns>
+    Task<DonorResult> GetDonorAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a donor.
+    /// </summary>
+    /// <param name="request">Fields of the new donor.</param>
+    /// <param name="cancellationToken">Lets the caller stop the request early.</param>
+    /// <returns>The saved donor, or the reason it was refused.</returns>
+    Task<DonorResult> CreateDonorAsync(DonorRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replaces the fields of a donor.
+    /// </summary>
+    /// <param name="id">Identifier of the donor.</param>
+    /// <param name="request">New fields of the donor.</param>
+    /// <param name="cancellationToken">Lets the caller stop the request early.</param>
+    /// <returns>The saved donor, or the reason it was refused.</returns>
+    Task<DonorResult> UpdateDonorAsync(Guid id, DonorRequest request, CancellationToken cancellationToken = default);
 }

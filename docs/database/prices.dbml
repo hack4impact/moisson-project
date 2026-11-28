@@ -1,7 +1,7 @@
 // Catalog items and their price history
 // Paste this file into https://dbdiagram.io to render the diagram.
 // Matches the migration 20261110175320_CreateCatalogItemsAndPrices.
-// donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems
+// donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems (donor profile columns from 20261128005314_AddDonorProfile)
 // and are shown here because each donation links to its catalog item.
 // quality_classes comes from 20261112060008_CreateQualityClasses and is shown because each donation links to its quality class.
 
@@ -53,18 +53,29 @@ Table prices {
 
 Table donors {
   id uuid [not null, default: `gen_random_uuid()`]
-  name varchar(255) [not null]
-  address text [null]
+  name varchar(255) [not null, note: 'Full name of a person, or name of an organization']
+  type varchar(20) [not null, note: 'individual or organization']
+  address text [null, note: 'Street address']
+  city varchar(100) [null]
+  province varchar(50) [null]
   postal_code varchar(20) [null]
   contact_person varchar(255) [null]
+  email varchar(254) [null]
+  phone varchar(30) [null]
+  notes text [null]
+  business_central_code varchar(50) [null, note: 'Unique code used to match the donor in Business Central, empty if none']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+  updated_at timestamptz [null, note: 'Stored in UTC, empty if never changed']
 
   indexes {
     id [pk, name: 'pk_donors']
+    business_central_code [unique, name: 'ix_donors_business_central_code']
   }
 
   checks {
     `length(name) > 0` [name: 'ck_donors_name_not_empty']
+    `type IN ('individual', 'organization')` [name: 'ck_donors_type']
+    `length(business_central_code) > 0` [name: 'ck_donors_business_central_code_not_empty']
   }
 
   Note: 'Organizations or people who give food'

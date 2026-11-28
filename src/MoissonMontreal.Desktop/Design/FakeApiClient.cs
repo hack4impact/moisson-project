@@ -83,4 +83,47 @@ public class FakeApiClient : IApiClient
     /// <inheritdoc/>
     public Task<ApiResult<AccountDto>> ReactivateAccountAsync(int id, uint version, CancellationToken cancellationToken = default) =>
         Task.FromResult(ApiResult<AccountDto>.Ok(SampleAccount, HttpStatusCode.OK));
+    public Task<DonorResult> GetDonorAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(DonorResult.Of(DonorResultStatus.NotFound));
+    }
+
+    /// <inheritdoc/>
+    public Task<DonorResult> CreateDonorAsync(DonorRequest request, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(Saved(Guid.NewGuid(), request, null));
+    }
+
+    /// <inheritdoc/>
+    public Task<DonorResult> UpdateDonorAsync(Guid id, DonorRequest request, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(Saved(id, request, DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>
+    /// Returns the request as if the API had saved it.
+    /// </summary>
+    /// <param name="id">Identifier given to the donor.</param>
+    /// <param name="request">Fields of the donor.</param>
+    /// <param name="updatedAt">Date and time of the change, or null for a new donor.</param>
+    /// <returns>A successful result.</returns>
+    private static DonorResult Saved(Guid id, DonorRequest request, DateTimeOffset? updatedAt)
+    {
+        var donor = new DonorDto(
+            id,
+            request.Name ?? string.Empty,
+            request.Type ?? string.Empty,
+            request.Address,
+            request.City,
+            request.Province,
+            request.PostalCode,
+            request.ContactPerson,
+            request.Email,
+            request.Phone,
+            request.Notes,
+            request.BusinessCentralCode,
+            DateTimeOffset.UtcNow,
+            updatedAt);
+        return new DonorResult(DonorResultStatus.Success, donor, new Dictionary<string, string[]>());
+    }
 }

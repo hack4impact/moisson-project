@@ -29,7 +29,7 @@ CREATE INDEX ix_user_account_changes_old_role_id ON user_account_changes (old_ro
 CREATE INDEX ix_user_account_changes_user_id ON user_account_changes (user_id);
 
 INSERT INTO "__EFMigrationsHistory" (migration_id, product_version)
-VALUES ('20261127164801_AddUserAccountChanges', '10.0.13');
+VALUES ('20261128080800_AddUserAccountChanges', '10.0.13');
 
 COMMIT;
 

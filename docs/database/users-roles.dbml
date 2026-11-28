@@ -1,6 +1,6 @@
 // Users and roles
 // Paste this file into https://dbdiagram.io to render the diagram.
-// Matches the migrations 20261103000127_CreateUsersAndRoles and 20261127164801_AddUserAccountChanges.
+// Matches the migrations 20261103000127_CreateUsersAndRoles and 20261128080800_AddUserAccountChanges.
 
 Table roles {
   id integer [not null, note: 'Fixed values, inserted by the migration']

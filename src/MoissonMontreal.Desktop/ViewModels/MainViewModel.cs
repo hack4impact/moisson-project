@@ -132,12 +132,12 @@ public partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Shows the donors page.
+    /// Shows the donors page with a new API client.
     /// </summary>
     [RelayCommand]
     private void ShowDonors()
     {
-        CurrentPage = new DonorsViewModel();
+        CurrentPage = new DonorsViewModel(_createApiClient());
     }
 
     /// <summary>

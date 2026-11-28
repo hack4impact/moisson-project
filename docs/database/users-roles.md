@@ -113,10 +113,10 @@ The SQL script is generated from the migration with `dotnet ef migrations script
 
 | Item | Location |
 | --- | --- |
-| Entity Framework migration | [20261127164801_AddUserAccountChanges](../../src/MoissonMontreal.Api/Data/Migrations/20261127164801_AddUserAccountChanges.cs) |
-| Equivalent SQL script | [0011_add_user_account_changes.sql](sql/0011_add_user_account_changes.sql) |
+| Entity Framework migration | [20261128080800_AddUserAccountChanges](../../src/MoissonMontreal.Api/Data/Migrations/20261128080800_AddUserAccountChanges.cs) |
+| Equivalent SQL script | [0012_add_user_account_changes.sql](sql/0012_add_user_account_changes.sql) |
 | Table settings | [UserAccountChangeConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/UserAccountChangeConfiguration.cs) |
 
 This migration adds the user_account_changes table. The version of users uses the system column `xmin`, so the SQL script adds no column to users.
 
-The SQL script is generated from the migration with `dotnet ef migrations script AddReceiptNumbers AddUserAccountChanges --project src/MoissonMontreal.Api --output docs/database/sql/0011_add_user_account_changes.sql`, and the byte order mark (BOM) at the start of the generated file is removed. It must be run after [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql).
+The SQL script is generated from the migration with `dotnet ef migrations script AddDonorProfile AddUserAccountChanges --project src/MoissonMontreal.Api --output docs/database/sql/0012_add_user_account_changes.sql`, and the byte order mark (BOM) at the start of the generated file is removed. It must be run after [0011_add_donor_profile.sql](sql/0011_add_donor_profile.sql).

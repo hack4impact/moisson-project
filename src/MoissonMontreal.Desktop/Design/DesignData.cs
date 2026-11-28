@@ -26,4 +26,9 @@ public static class DesignData
     /// Account page ViewModel backed by a <see cref="FakeApiClient"/>, signed in as the preview administrator.
     /// </summary>
     public static AccountsViewModel Accounts { get; } = new(new FakeApiClient(), "preview@example.org");
+
+    /// <summary>
+    /// Donors page ViewModel backed by a <see cref="FakeApiClient"/>.
+    /// </summary>
+    public static DonorsViewModel Donors { get; } = new(new FakeApiClient());
 }

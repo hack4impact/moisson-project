@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MoissonMontreal.Api.Data.Migrations
 {
     [DbContext(typeof(MoissonDbContext))]
-    [Migration("20261127164801_AddUserAccountChanges")]
+    [Migration("20261128080800_AddUserAccountChanges")]
     partial class AddUserAccountChanges
     {
         /// <inheritdoc />
@@ -213,6 +213,16 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("address");
 
+                    b.Property<string>("BusinessCentralCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("business_central_code");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("city");
+
                     b.Property<string>("ContactPerson")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
@@ -224,23 +234,60 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("email");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("phone");
+
                     b.Property<string>("PostalCode")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("postal_code");
 
+                    b.Property<string>("Province")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("province");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
                     b.HasKey("Id")
                         .HasName("pk_donors");
 
+                    b.HasIndex("BusinessCentralCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_donors_business_central_code");
+
                     b.ToTable("donors", null, t =>
                         {
+                            t.HasCheckConstraint("ck_donors_business_central_code_not_empty", "length(business_central_code) > 0");
+
                             t.HasCheckConstraint("ck_donors_name_not_empty", "length(name) > 0");
+
+                            t.HasCheckConstraint("ck_donors_type", "type IN ('individual', 'organization')");
                         });
                 });
 
