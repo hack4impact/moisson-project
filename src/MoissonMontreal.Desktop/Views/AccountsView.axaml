@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MoissonMontreal.Desktop.ViewModels"
+             xmlns:design="using:MoissonMontreal.Desktop.Design"
+             x:Class="MoissonMontreal.Desktop.Views.AccountsView"
+             x:DataType="vm:AccountsViewModel"
+             Design.DataContext="{x:Static design:DesignData.Accounts}">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.error">
+            <Setter Property="Foreground" Value="Firebrick" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="TextBlock.header">
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer>
+        <StackPanel Margin="16" Spacing="6" MaxWidth="1000" HorizontalAlignment="Left">
+            <TextBlock Text="{Binding Title}" FontSize="20" />
+
+            <Grid ColumnDefinitions="180,240,130,120,100,180" Margin="0,8,0,0">
+                <TextBlock Grid.Column="0" Classes="header" Text="Name" />
+                <TextBlock Grid.Column="1" Classes="header" Text="Email" />
+                <TextBlock Grid.Column="2" Classes="header" Text="Role" />
+                <TextBlock Grid.Column="3" Classes="header" Text="Access" />
+                <TextBlock Grid.Column="4" Classes="header" Text="Created" />
+                <TextBlock Grid.Column="5" Classes="header" Text="Created by" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Accounts}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AccountRow">
+                        <Grid ColumnDefinitions="180,240,130,120,100,180" Margin="0,2">
+                            <TextBlock Grid.Column="0" Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Column="1" Text="{Binding Email}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Column="2" Text="{Binding Role}" />
+                            <TextBlock Grid.Column="3" Text="{Binding Access}" />
+                            <TextBlock Grid.Column="4" Text="{Binding CreatedOn}" />
+                            <TextBlock Grid.Column="5" Text="{Binding CreatedBy}" TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{Binding ListMessage}" TextWrapping="Wrap" IsVisible="{Binding ListMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            <Button Content="Refresh" Command="{Binding LoadCommand}" />
+
+            <StackPanel Spacing="6" MaxWidth="600" HorizontalAlignment="Left" Margin="0,16,0,0">
+                <TextBlock Text="New account" FontSize="16" />
+                <TextBlock Text="Employees sign in with their Microsoft work account, so no password is needed." TextWrapping="Wrap" />
+
+                <TextBlock Text="Name *" />
+                <TextBox Text="{Binding DisplayName}" Width="400" HorizontalAlignment="Left" />
+                <TextBlock Classes="error" Text="{Binding DisplayNameError}" IsVisible="{Binding DisplayNameError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                <TextBlock Text="Work email *" />
+                <TextBox Text="{Binding Email}" Width="400" HorizontalAlignment="Left" />
+                <TextBlock Classes="error" Text="{Binding EmailError}" IsVisible="{Binding EmailError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                <TextBlock Text="Role *" />
+                <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding Role}" Width="200" />
+                <TextBlock Classes="error" Text="{Binding RoleError}" IsVisible="{Binding RoleError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                <Button Content="Create account" Command="{Binding CreateCommand}" Margin="0,12,0,0" />
+                <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" IsVisible="{Binding StatusMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

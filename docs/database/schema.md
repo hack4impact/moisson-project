@@ -31,7 +31,7 @@ The four roles of the app, one per department: Supply, Supply Director, Finance 
 
 ### users
 
-One row per employee who has access to the app: their work email, their name, their role, and whether their access is still active. Employees sign in with their Microsoft work account, so no password is stored in the app. When someone leaves, the admin deactivates their access instead of deleting them, so the history of who did what is kept.
+One row per employee who has access to the app: their work email, their name, their role, and whether their access is still active. Employees sign in with their Microsoft work account, so no password is stored in the app. When someone leaves, the admin deactivates their access instead of deleting them, so the history of who did what is kept. Each account also records the admin who created it.
 
 More detail: [Users and roles](users-roles.md).
 
@@ -182,6 +182,7 @@ Each table comes from one of these migrations:
 | catalog_items, prices | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
 | quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
 | catalog item details | [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs) | [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql) | [catalog.md](catalog.md) |
+| creator of each account | [20261125020527_AddUserCreatedBy](../../src/MoissonMontreal.Api/Data/Migrations/20261125020527_AddUserCreatedBy.cs) | [0008_add_user_created_by.sql](sql/0008_add_user_created_by.sql) | [users-roles.md](users-roles.md) |
 
 The SQL scripts must be run in order on an empty database.
 

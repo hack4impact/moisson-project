@@ -11,7 +11,7 @@ namespace MoissonMontreal.Desktop.ViewModels;
 public partial class MainViewModel : ViewModelBase
 {
     /// <summary>
-    /// Creates a new API client each time the home page is opened.
+    /// Creates a new API client each time the home page or the accounts page is opened.
     /// </summary>
     private readonly Func<IApiClient> _createApiClient;
 
@@ -68,6 +68,15 @@ public partial class MainViewModel : ViewModelBase
     private void ShowDonors()
     {
         CurrentPage = new DonorsViewModel();
+    }
+
+    /// <summary>
+    /// Shows the accounts page with a new API client.
+    /// </summary>
+    [RelayCommand]
+    private void ShowAccounts()
+    {
+        CurrentPage = new AccountsViewModel(_createApiClient());
     }
 
     /// <summary>

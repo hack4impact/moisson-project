@@ -10,19 +10,24 @@ namespace MoissonMontreal.Api.Data.Configurations;
 public class UserConfiguration : IEntityTypeConfiguration<User>
 {
     /// <summary>
-    /// Configures the columns, constraints, unique indexes and role relationship of the users table.
+    /// Name of the unique index on the email, reported by PostgreSQL when an email is already used.
+    /// </summary>
+    public const string EmailIndex = "ix_users_email";
+
+    /// <summary>
+    /// Configures the columns, constraints, unique indexes, role relationship and creator of the users table.
     /// </summary>
     /// <param name="builder">Builder used to configure the user entity.</param>
     public void Configure(EntityTypeBuilder<User> builder)
     {
         builder.ToTable(t => t.HasCheckConstraint("ck_users_email_lowercase", "email = lower(email)"));
 
-        builder.Property(u => u.Email).HasMaxLength(256).IsRequired();
-        builder.HasIndex(u => u.Email).IsUnique();
+        builder.Property(u => u.Email).HasMaxLength(User.EmailMaxLength).IsRequired();
+        builder.HasIndex(u => u.Email).IsUnique().HasDatabaseName(EmailIndex);
 
         builder.HasIndex(u => u.EntraObjectId).IsUnique();
 
-        builder.Property(u => u.DisplayName).HasMaxLength(200).IsRequired();
+        builder.Property(u => u.DisplayName).HasMaxLength(User.DisplayNameMaxLength).IsRequired();
 
         builder.Property(u => u.IsActive).HasDefaultValue(true).HasSentinel(true);
 
@@ -32,5 +37,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .WithMany(r => r.Users)
             .HasForeignKey(u => u.RoleId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(u => u.CreatedBy)
+            .WithMany()
+            .HasForeignKey(u => u.CreatedById)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 }

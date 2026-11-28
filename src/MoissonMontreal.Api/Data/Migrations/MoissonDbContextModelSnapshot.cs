@@ -472,6 +472,10 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<int?>("CreatedById")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by_id");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -504,6 +508,9 @@ namespace MoissonMontreal.Api.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_users");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("ix_users_created_by_id");
 
                     b.HasIndex("Email")
                         .IsUnique()
@@ -611,12 +618,20 @@ namespace MoissonMontreal.Api.Data.Migrations
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.User", b =>
                 {
+                    b.HasOne("MoissonMontreal.Core.Entities.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_users_users_created_by_id");
+
                     b.HasOne("MoissonMontreal.Core.Entities.Role", "Role")
                         .WithMany("Users")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_users_roles_role_id");
+
+                    b.Navigation("CreatedBy");
 
                     b.Navigation("Role");
                 });

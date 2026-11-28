@@ -41,6 +41,7 @@ One row per employee who has been given access to the app.
 | is_active | Yes while the employee has access. Set to no when the admin removes access. |
 | created_at | Date and time the access was given |
 | updated_at | Date and time of the last change, empty if never changed |
+| created_by_id | The admin who created the account. Empty for the first Admin, who is inserted directly in the database, and for accounts added before this column existed. |
 
 ## How the tables are linked
 
@@ -54,10 +55,11 @@ Passwords are not stored in the app. Employees sign in with their Microsoft work
 2. A role cannot be deleted while a user still has it.
 3. Two users cannot have the same email or the same Microsoft account.
 4. Emails are always stored in lowercase, so the same address cannot be entered twice with different capital letters.
+5. The creator of an account must be an existing account, and an account cannot be deleted while it is the creator of another account.
 
 ## Life of an account
 
-1. The admin adds the employee with their work email, name and role.
+1. The admin adds the employee with their work email, name and role. The app records which admin added them and when.
 2. The first time an employee's action requires a permission, the app links the employee's Microsoft account to that row.
 3. The admin can change the role at any time.
 4. When the admin removes access, the account is deactivated rather than deleted, so the history of who did what is kept.
@@ -70,6 +72,7 @@ The very first Admin account cannot be added from the app, since no admin exists
 | --- | --- |
 | Entity Framework migration | [20261103000127_CreateUsersAndRoles](../../src/MoissonMontreal.Api/Data/Migrations/20261103000127_CreateUsersAndRoles.cs) |
 | Equivalent SQL script | [0001_create_users_and_roles.sql](sql/0001_create_users_and_roles.sql) |
+| Creator of each account | [20261125020527_AddUserCreatedBy](../../src/MoissonMontreal.Api/Data/Migrations/20261125020527_AddUserCreatedBy.cs) and [0008_add_user_created_by.sql](sql/0008_add_user_created_by.sql) |
 | Table settings | [UserConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/UserConfiguration.cs) and [RoleConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/RoleConfiguration.cs) |
 
 The SQL script is generated from the migration with `dotnet ef migrations script 0 CreateUsersAndRoles --project src/MoissonMontreal.Api --output docs/database/sql/0001_create_users_and_roles.sql`. It can be run on an empty Azure Database for PostgreSQL server and records itself in the migration history, so Entity Framework will not apply it a second time.

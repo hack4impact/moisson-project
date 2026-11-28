@@ -20,6 +20,7 @@
             <Button Content="Home"      Command="{Binding ShowHomeCommand}" />
             <Button Content="Donations" Command="{Binding ShowDonationsCommand}" />
             <Button Content="Donors"    Command="{Binding ShowDonorsCommand}" />
+            <Button Content="Accounts"  Command="{Binding ShowAccountsCommand}" />
             <Button Content="Sign out"  Command="{Binding SignOutCommand}" />
         </StackPanel>
 

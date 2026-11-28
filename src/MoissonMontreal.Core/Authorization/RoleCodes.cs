@@ -25,4 +25,9 @@ public static class RoleCodes
     /// Administrator: everything, plus accounts, the price grid and the quality percentages.
     /// </summary>
     public const string Admin = "Admin";
+
+    /// <summary>
+    /// The four role codes.
+    /// </summary>
+    public static IReadOnlyList<string> All { get; } = [Supply, SupplyDirector, Finance, Admin];
 }
