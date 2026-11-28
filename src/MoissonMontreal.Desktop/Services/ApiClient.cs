@@ -50,6 +50,29 @@ public class ApiClient : IApiClient
     }
 
     /// <inheritdoc/>
+    public async Task<CurrentUserDto?> GetCurrentUserAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await _httpClient.GetAsync("api/me", cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<CurrentUserDto>(cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+        catch (TaskCanceledException)
+        {
+            return null;
+        }
+    }
+
+    /// <inheritdoc/>
     public Task<DonorResult> GetDonorAsync(Guid id, CancellationToken cancellationToken = default) =>
         SendDonorAsync(() => _httpClient.GetAsync($"api/donors/{id}", cancellationToken), cancellationToken);
 

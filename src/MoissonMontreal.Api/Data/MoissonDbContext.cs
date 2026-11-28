@@ -39,6 +39,10 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
     /// </summary>
     public DbSet<ReceiptItem> ReceiptItems => Set<ReceiptItem>();
 
+    public DbSet<ReceiptStatusChange> ReceiptStatusChanges => Set<ReceiptStatusChange>();
+
+    public DbSet<ReceiptNumberCounter> ReceiptNumberCounters => Set<ReceiptNumberCounter>();
+
     /// <summary>
     /// Types of food recognized by the app, which the price grid gives a price to.
     /// </summary>
@@ -53,6 +57,16 @@ public class MoissonDbContext(DbContextOptions<MoissonDbContext> options) : DbCo
     /// Quality classes of donated food, with the percentage of the price kept for each one.
     /// </summary>
     public DbSet<QualityClass> QualityClasses => Set<QualityClass>();
+
+    /// <summary>
+    /// Confirmed matches between Business Central item codes and catalog items, reused on every import.
+    /// </summary>
+    public DbSet<BcItemMapping> BcItemMappings => Set<BcItemMapping>();
+
+    /// <summary>
+    /// History of every change made to a Business Central item mapping, with its author.
+    /// </summary>
+    public DbSet<BcItemMappingChange> BcItemMappingChanges => Set<BcItemMappingChange>();
 
     /// <summary>
     /// Names every table, column, key and index in snake_case.

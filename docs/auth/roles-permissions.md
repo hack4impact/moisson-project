@@ -99,5 +99,5 @@ The Microsoft account is linked by `UserLookupService`, called from `PermissionH
 
 ## Open points
 
-- With "Admin can do everything", the same Admin could approve a receipt at both levels. If two different people must approve, that rule belongs to the receipt status workflow, not to the roles.
+- With "Admin can do everything", the same Admin can approve a receipt at both levels, as long as they did not submit it. The employee who submits a receipt cannot approve it (see [receipt-statuses.md](../database/receipt-statuses.md)).
 - The app cannot reset the Microsoft link of an account yet (empty `entra_object_id`), for example when IT recreates an employee's Microsoft account. To discuss with the team: an action for this in the account management screen.

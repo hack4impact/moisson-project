@@ -19,6 +19,17 @@ public class FakeApiClient : IApiClient
     }
 
     /// <inheritdoc/>
+    public Task<CurrentUserDto?> GetCurrentUserAsync(CancellationToken cancellationToken = default)
+    {
+        var user = new CurrentUserDto(
+            ObjectId: "00000000-0000-0000-0000-000000000000",
+            Name: "Preview User",
+            Email: "preview@example.org",
+            TenantId: null);
+        return Task.FromResult<CurrentUserDto?>(user);
+    }
+
+    /// <inheritdoc/>
     public Task<DonorResult> GetDonorAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(DonorResult.Of(DonorResultStatus.NotFound));

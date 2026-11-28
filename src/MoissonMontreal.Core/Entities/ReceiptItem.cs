@@ -50,4 +50,10 @@ public class ReceiptItem
     /// Percentage of the price applied for the item's quality grade, from 0 to 100.
     /// </summary>
     public decimal QualityPercent { get; set; }
+
+    /// <summary>
+    /// True once the receipt is cancelled. The line is kept as a record of the cancelled receipt, but the food item is
+    /// free again, so it can go on a new receipt.
+    /// </summary>
+    public bool ReceiptCancelled { get; set; }
 }

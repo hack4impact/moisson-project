@@ -12,7 +12,7 @@ namespace MoissonMontreal.Tests.Api;
 [Trait("Category", "Integration")]
 public class DonorProfileMigrationTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
 {
-    private const string MigrationBeforeDonorProfile = "20261117040905_AddCatalogItemDetails";
+    private const string MigrationBeforeDonorProfile = "20261127053347_AddReceiptNumbers";
 
     [Fact]
     public async Task Migrate_KeepsExistingDonors_AndMakesThemOrganizations()

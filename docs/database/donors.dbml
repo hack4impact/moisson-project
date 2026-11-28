@@ -1,6 +1,6 @@
 // Donor profiles
 // Paste this file into https://dbdiagram.io to render the diagram.
-// Matches the migration 20261118185010_AddDonorProfile.
+// Matches the migration 20261128005314_AddDonorProfile.
 // The donors table was created by 20261105163138_CreateDonorsAndFoodItems; this migration adds the profile columns.
 
 Table donors {

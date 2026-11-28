@@ -1,7 +1,8 @@
 // Receipts and their prices
 // Paste this file into https://dbdiagram.io to render the diagram.
-// Matches the migration 20261107041912_CreateReceipts.
-// donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems (donor profile columns from 20261118185010_AddDonorProfile),
+// Matches the migration 20261107041912_CreateReceipts, with the status added by 20261127052039_AddReceiptStatus
+// and the receipt number added by 20261127053347_AddReceiptNumbers.
+// donors and food_items come from the migration 20261105163138_CreateDonorsAndFoodItems (donor profile columns from 20261128005314_AddDonorProfile),
 // catalog_items from 20261110175320_CreateCatalogItemsAndPrices and quality_classes from 20261112060008_CreateQualityClasses.
 // They are shown here because receipts link to them.
 
@@ -91,7 +92,8 @@ Table catalog_items {
   category varchar(100) [not null]
   business_central_code varchar(50) [not null, note: 'Unique code used to match the item in Business Central']
   unit varchar(20) [not null, note: 'Free text until the price of one unit is decided']
-  quality_class varchar(1) [not null, note: 'Code of the quality class. The class lives on the catalog item']
+  quality_class varchar(1) [note: 'Code of the quality class. The class lives on the catalog item. Empty until someone picks it, as for items imported from Business Central']
+  is_active boolean [not null, default: true, note: 'False once the item is removed from the price grid. The row is kept for history']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
   updated_at timestamptz [null, note: 'Stored in UTC, empty if never changed']
 
@@ -117,15 +119,22 @@ Table receipts {
   total_amount numeric(12,2) [not null, note: 'Sum of the rounded line values, in dollars']
   receipt_date date [not null, default: `(now() AT TIME ZONE 'America/Montreal')::date`, note: 'Date in Montreal time, used for the tax year']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+  status varchar(30) [not null, default: 'Draft', note: 'Where the receipt is in the approval process. See receipt-statuses.md']
+  receipt_number varchar(10) [null, note: 'Unique number such as DEN_000001, given when the receipt is issued and kept if it is cancelled']
 
   indexes {
     id [pk, name: 'pk_receipts']
     (id, donor_id) [unique, name: 'ak_receipts_id_donor_id']
     donor_id [name: 'ix_receipts_donor_id']
+    receipt_number [unique, name: 'ix_receipts_receipt_number']
   }
 
   checks {
     `total_amount >= 0` [name: 'ck_receipts_total_amount_not_negative']
+    `status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')` [name: 'ck_receipts_status_valid']
+    `receipt_number ~ '^DEN_[0-9]{6}$'` [name: 'ck_receipts_receipt_number_format']
+    `status <> 'Issued' OR receipt_number IS NOT NULL` [name: 'ck_receipts_issued_has_receipt_number']
+    `status IN ('Issued', 'Cancelled') OR receipt_number IS NULL` [name: 'ck_receipts_receipt_number_only_once_issued']
   }
 
   Note: 'Tax receipts given to donors'
@@ -139,10 +148,11 @@ Table receipt_items {
   unit varchar(20) [not null, note: 'Copied from the food item when the receipt was made']
   unit_price numeric(12,4) [not null, note: 'Price of one unit when the receipt was made']
   quality_percent numeric(5,2) [not null, note: 'A = 100, B = 50 to 75, C = 0']
+  receipt_cancelled boolean [not null, default: false, note: 'True once the receipt is cancelled. The line is kept, but the food item is free again']
 
   indexes {
     (receipt_id, food_item_id) [pk, name: 'pk_receipt_items']
-    food_item_id [unique, name: 'ix_receipt_items_food_item_id']
+    food_item_id [unique, name: 'ix_receipt_items_food_item_id', note: 'Partial index where `NOT receipt_cancelled`: a food item can be on only one receipt that is not cancelled']
     (food_item_id, donor_id) [name: 'ix_receipt_items_food_item_id_donor_id']
     (receipt_id, donor_id) [name: 'ix_receipt_items_receipt_id_donor_id']
   }

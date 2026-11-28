@@ -52,14 +52,20 @@ public class CatalogItem
     public string Unit { get; set; } = string.Empty;
 
     /// <summary>
-    /// Code of the quality class of this food. It must match an existing quality class.
+    /// Code of the quality class of this food, or null until someone picks it, as for items imported from Business Central.
+    /// When it is set, it must match an existing quality class.
     /// </summary>
-    public string QualityClassCode { get; set; } = string.Empty;
+    public string? QualityClassCode { get; set; }
 
     /// <summary>
-    /// Quality class of this food. The class lives on the catalog item.
+    /// Quality class of this food, or null until someone picks it. The class lives on the catalog item.
     /// </summary>
-    public QualityClass QualityClass { get; set; } = null!;
+    public QualityClass? QualityClass { get; set; }
+
+    /// <summary>
+    /// False once the item is removed from the price grid. The row is kept so past donations and prices stay valid.
+    /// </summary>
+    public bool IsActive { get; set; } = true;
 
     /// <summary>
     /// Date and time the catalog item was created, set by the database.

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using MoissonMontreal.Core.Entities;
+using MoissonMontreal.Core.Receipts;
 
 namespace MoissonMontreal.Api.Data.Configurations;
 
@@ -9,13 +10,28 @@ namespace MoissonMontreal.Api.Data.Configurations;
 /// </summary>
 public class ReceiptConfiguration : IEntityTypeConfiguration<Receipt>
 {
+    public const string ReceiptNumberIndex = "ix_receipts_receipt_number";
+
     /// <summary>
     /// Configures the columns, constraint and donor relationship of the receipts table.
     /// </summary>
     /// <param name="builder">Builder used to configure the receipt entity.</param>
     public void Configure(EntityTypeBuilder<Receipt> builder)
     {
-        builder.ToTable(t => t.HasCheckConstraint("ck_receipts_total_amount_not_negative", "total_amount >= 0"));
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("ck_receipts_total_amount_not_negative", "total_amount >= 0");
+            t.HasCheckConstraint("ck_receipts_status_valid", ReceiptStatusColumn.IsValid("status"));
+            t.HasCheckConstraint(
+                "ck_receipts_receipt_number_format",
+                $"receipt_number ~ '^{ReceiptNumber.Series}_[0-9]{{{ReceiptNumber.Digits}}}$'");
+            t.HasCheckConstraint(
+                "ck_receipts_issued_has_receipt_number",
+                $"status <> '{nameof(ReceiptStatus.Issued)}' OR receipt_number IS NOT NULL");
+            t.HasCheckConstraint(
+                "ck_receipts_receipt_number_only_once_issued",
+                $"status IN ('{nameof(ReceiptStatus.Issued)}', '{nameof(ReceiptStatus.Cancelled)}') OR receipt_number IS NULL");
+        });
 
         builder.Property(r => r.Id).HasDefaultValueSql("gen_random_uuid()");
 
@@ -24,6 +40,17 @@ public class ReceiptConfiguration : IEntityTypeConfiguration<Receipt>
         builder.Property(r => r.ReceiptDate).HasDefaultValueSql("(now() AT TIME ZONE 'America/Montreal')::date");
 
         builder.Property(r => r.CreatedAt).HasDefaultValueSql("now()");
+
+        builder.Property(r => r.Status)
+            .HasConversion<string>()
+            .HasMaxLength(ReceiptStatusColumn.MaxLength)
+            .HasDefaultValue(ReceiptStatus.Draft);
+
+        builder.Property(r => r.ReceiptNumber).HasMaxLength(ReceiptNumber.MaxLength);
+
+        builder.HasIndex(r => r.ReceiptNumber)
+            .IsUnique()
+            .HasDatabaseName(ReceiptNumberIndex);
 
         builder.HasOne(r => r.Donor)
             .WithMany()

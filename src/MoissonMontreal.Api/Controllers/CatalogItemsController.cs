@@ -4,11 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MoissonMontreal.Api.Catalog;
 using MoissonMontreal.Api.Data;
-using MoissonMontreal.Api.Data.Configurations;
 using MoissonMontreal.Core.Authorization;
 using MoissonMontreal.Core.Dtos;
 using MoissonMontreal.Core.Entities;
-using Npgsql;
 
 namespace MoissonMontreal.Api.Controllers;
 
@@ -154,8 +152,7 @@ public class CatalogItemsController(MoissonDbContext db) : ControllerBase
             await db.SaveChangesAsync(cancellationToken);
             return null;
         }
-        catch (DbUpdateException exception) when (exception.InnerException is PostgresException postgres
-            && postgres.ConstraintName == CatalogItemConfiguration.BusinessCentralCodeIndex)
+        catch (DbUpdateException exception) when (CatalogSaveErrors.IsBusinessCentralCodeConflict(exception))
         {
             return Conflict(new ProblemDetails
             {
@@ -164,8 +161,7 @@ public class CatalogItemsController(MoissonDbContext db) : ControllerBase
                 Detail = "A catalog item with this Business Central code already exists.",
             });
         }
-        catch (DbUpdateException exception) when (exception.InnerException is PostgresException postgres
-            && postgres.ConstraintName == CatalogItemConfiguration.QualityClassForeignKey)
+        catch (DbUpdateException exception) when (CatalogSaveErrors.IsMissingQualityClass(exception))
         {
             // The quality class was deleted after TryReadAsync checked it.
             return ValidationProblem(new ValidationProblemDetails(QualityClassErrors()));

@@ -57,8 +57,11 @@ public class CatalogItemConfiguration : IEntityTypeConfiguration<CatalogItem>
         builder.HasOne(c => c.QualityClass)
             .WithMany()
             .HasForeignKey(c => c.QualityClassCode)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName(QualityClassForeignKey);
+
+        builder.Property(c => c.IsActive).HasDefaultValue(true).HasSentinel(true);
 
         builder.Property(c => c.CreatedAt).HasDefaultValueSql("now()");
     }

@@ -2,7 +2,9 @@
 // Paste this file into https://dbdiagram.io to render the diagram.
 // Matches the migrations 20261103000127_CreateUsersAndRoles, 20261105163138_CreateDonorsAndFoodItems,
 // 20261107041912_CreateReceipts, 20261110175320_CreateCatalogItemsAndPrices,
-// 20261112060008_CreateQualityClasses, 20261117040905_AddCatalogItemDetails and 20261118185010_AddDonorProfile.
+// 20261112060008_CreateQualityClasses, 20261117040905_AddCatalogItemDetails,
+// 20261120031640_MakeCatalogItemQualityClassOptional, 20261124214039_AddBcItemMappings, 20261127052039_AddReceiptStatus
+// 20261127053347_AddReceiptNumbers and 20261128005314_AddDonorProfile.
 
 Project moisson_montreal {
   database_type: 'PostgreSQL'
@@ -133,18 +135,66 @@ Table receipts {
   total_amount numeric(12,2) [not null, note: 'Sum of the rounded line values, in dollars']
   receipt_date date [not null, default: `(now() AT TIME ZONE 'America/Montreal')::date`, note: 'Date in Montreal time, used for the tax year']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+  status varchar(30) [not null, default: 'Draft', note: 'Where the receipt is in the approval process. See receipt-statuses.md']
+  receipt_number varchar(10) [null, note: 'Unique number such as DEN_000001, given when the receipt is issued and kept if it is cancelled']
 
   indexes {
     id [pk, name: 'pk_receipts']
     (id, donor_id) [unique, name: 'ak_receipts_id_donor_id', note: 'Lets receipt_items check the donor']
     donor_id [name: 'ix_receipts_donor_id']
+    receipt_number [unique, name: 'ix_receipts_receipt_number']
   }
 
   checks {
     `total_amount >= 0` [name: 'ck_receipts_total_amount_not_negative']
+    `status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')` [name: 'ck_receipts_status_valid']
+    `receipt_number ~ '^DEN_[0-9]{6}$'` [name: 'ck_receipts_receipt_number_format']
+    `status <> 'Issued' OR receipt_number IS NOT NULL` [name: 'ck_receipts_issued_has_receipt_number']
+    `status IN ('Issued', 'Cancelled') OR receipt_number IS NULL` [name: 'ck_receipts_receipt_number_only_once_issued']
   }
 
   Note: 'Tax receipts given to donors'
+}
+
+Table receipt_status_changes {
+  id uuid [not null, default: `gen_random_uuid()`]
+  receipt_id uuid [not null]
+  from_status varchar(30) [not null, note: 'Status before the change']
+  to_status varchar(30) [not null, note: 'Status after the change']
+  changed_by_user_id integer [not null, note: 'Employee who made the change']
+  changed_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+  reason varchar(1000) [null, note: 'Required when a receipt is refused or cancelled']
+
+  indexes {
+    id [pk, name: 'pk_receipt_status_changes']
+    (receipt_id, changed_at) [name: 'ix_receipt_status_changes_receipt_id_changed_at']
+    changed_by_user_id [name: 'ix_receipt_status_changes_changed_by_user_id']
+  }
+
+  checks {
+    `from_status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')` [name: 'ck_receipt_status_changes_from_status_valid']
+    `to_status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')` [name: 'ck_receipt_status_changes_to_status_valid']
+    `from_status <> to_status` [name: 'ck_receipt_status_changes_status_differs']
+    `length(reason) > 0` [name: 'ck_receipt_status_changes_reason_not_empty']
+    `to_status NOT IN ('Draft', 'Cancelled') OR reason IS NOT NULL` [name: 'ck_receipt_status_changes_reason_required']
+  }
+
+  Note: 'One row per status change of a receipt: who made it, when, and why'
+}
+
+Table receipt_number_counters {
+  series varchar(10) [not null, note: 'Series of receipt numbers. DEN for food donations']
+  last_number integer [not null, note: 'Last number given in the series, 0 before the first receipt is issued']
+
+  indexes {
+    series [pk, name: 'pk_receipt_number_counters']
+  }
+
+  checks {
+    `last_number BETWEEN 0 AND 999999` [name: 'ck_receipt_number_counters_last_number_in_range']
+  }
+
+  Note: 'One row per series. Locked while a receipt is issued, so two receipts never get the same number and no number is skipped'
 }
 
 Table receipt_items {
@@ -155,10 +205,11 @@ Table receipt_items {
   unit varchar(20) [not null, note: 'Copied from the food item when the receipt was made']
   unit_price numeric(12,4) [not null, note: 'Price of one unit when the receipt was made']
   quality_percent numeric(5,2) [not null, note: 'A = 100, B = 50 to 75, C = 0']
+  receipt_cancelled boolean [not null, default: false, note: 'True once the receipt is cancelled. The line is kept, but the food item is free again']
 
   indexes {
     (receipt_id, food_item_id) [pk, name: 'pk_receipt_items']
-    food_item_id [unique, name: 'ix_receipt_items_food_item_id', note: 'A food item can only be on one receipt']
+    food_item_id [unique, name: 'ix_receipt_items_food_item_id', note: 'Partial index where `NOT receipt_cancelled`: a food item can be on only one receipt that is not cancelled']
     (food_item_id, donor_id) [name: 'ix_receipt_items_food_item_id_donor_id']
     (receipt_id, donor_id) [name: 'ix_receipt_items_receipt_id_donor_id']
   }
@@ -179,7 +230,8 @@ Table catalog_items {
   category varchar(100) [not null]
   business_central_code varchar(50) [not null, note: 'Unique code used to match the item in Business Central']
   unit varchar(20) [not null, note: 'Free text until the price of one unit is decided']
-  quality_class varchar(1) [not null, note: 'Code of the quality class. The class lives on the catalog item']
+  quality_class varchar(1) [note: 'Code of the quality class. The class lives on the catalog item. Empty until someone picks it, as for items imported from Business Central']
+  is_active boolean [not null, default: true, note: 'False once the item is removed from the price grid. The row is kept for history']
   created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
   updated_at timestamptz [null, note: 'Stored in UTC, empty if never changed']
 
@@ -218,6 +270,47 @@ Table prices {
   Note: 'Price history: a new price is added as a new row, earlier prices are kept'
 }
 
+Table bc_item_mappings {
+  id uuid [not null, default: `gen_random_uuid()`]
+  business_central_code varchar(50) [not null, note: 'Item code found in the Business Central donation export']
+  catalog_item_id uuid [not null, note: 'Catalog item used to value this Business Central item']
+  confirmed_by_user_id integer [not null, note: 'User who last confirmed the mapping']
+  confirmed_at timestamptz [not null, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_bc_item_mappings']
+    business_central_code [unique, name: 'ix_bc_item_mappings_business_central_code', note: 'A code can only have one mapping']
+    catalog_item_id [name: 'ix_bc_item_mappings_catalog_item_id']
+    confirmed_by_user_id [name: 'ix_bc_item_mappings_confirmed_by_user_id']
+  }
+
+  checks {
+    `length(business_central_code) > 0` [name: 'ck_bc_item_mappings_business_central_code_not_empty']
+  }
+
+  Note: 'Confirmed matches between Business Central item codes and catalog items, reused on every import. A mapping to an inactive catalog item must be reviewed'
+}
+
+Table bc_item_mapping_changes {
+  id uuid [not null, default: `gen_random_uuid()`]
+  business_central_code varchar(50) [not null, note: 'Copied, not linked, so the history stays after a mapping is deleted']
+  action varchar(20) [not null, note: 'Created, Updated or Deleted']
+  old_catalog_item_id uuid [null, note: 'Empty when the mapping was created']
+  new_catalog_item_id uuid [null, note: 'Empty when the mapping was deleted']
+  changed_by_user_id integer [not null]
+  changed_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_bc_item_mapping_changes']
+    business_central_code [name: 'ix_bc_item_mapping_changes_business_central_code']
+    old_catalog_item_id [name: 'ix_bc_item_mapping_changes_old_catalog_item_id']
+    new_catalog_item_id [name: 'ix_bc_item_mapping_changes_new_catalog_item_id']
+    changed_by_user_id [name: 'ix_bc_item_mapping_changes_changed_by_user_id']
+  }
+
+  Note: 'History of every change made to a mapping, with its author'
+}
+
 Ref fk_users_roles_role_id: users.role_id > roles.id [delete: restrict]
 
 Ref fk_food_items_donors_donor_id: food_items.donor_id > donors.id [delete: restrict]
@@ -232,9 +325,23 @@ Ref fk_receipt_items_receipts_receipt_id_donor_id: receipt_items.(receipt_id, do
 
 Ref fk_receipt_items_food_items_food_item_id_donor_id: receipt_items.(food_item_id, donor_id) > food_items.(id, donor_id) [delete: restrict]
 
+Ref fk_receipt_status_changes_receipts_receipt_id: receipt_status_changes.receipt_id > receipts.id [delete: restrict]
+
+Ref fk_receipt_status_changes_users_changed_by_user_id: receipt_status_changes.changed_by_user_id > users.id [delete: restrict]
+
 Ref fk_prices_catalog_items_catalog_item_id: prices.catalog_item_id > catalog_items.id [delete: restrict]
 
 Ref fk_catalog_items_quality_classes_quality_class: catalog_items.quality_class > quality_classes.code [delete: restrict]
+
+Ref fk_bc_item_mappings_catalog_items_catalog_item_id: bc_item_mappings.catalog_item_id > catalog_items.id [delete: restrict]
+
+Ref fk_bc_item_mappings_users_confirmed_by_user_id: bc_item_mappings.confirmed_by_user_id > users.id [delete: restrict]
+
+Ref fk_bc_item_mapping_changes_catalog_items_old_catalog_item_id: bc_item_mapping_changes.old_catalog_item_id > catalog_items.id [delete: restrict]
+
+Ref fk_bc_item_mapping_changes_catalog_items_new_catalog_item_id: bc_item_mapping_changes.new_catalog_item_id > catalog_items.id [delete: restrict]
+
+Ref fk_bc_item_mapping_changes_users_changed_by_user_id: bc_item_mapping_changes.changed_by_user_id > users.id [delete: restrict]
 
 TableGroup accounts {
   roles
@@ -250,11 +357,15 @@ TableGroup donations {
 TableGroup tax_receipts {
   receipts
   receipt_items
+  receipt_status_changes
+  receipt_number_counters
 }
 
 TableGroup price_grid {
   catalog_items
   prices
+  bc_item_mappings
+  bc_item_mapping_changes
 }
 
 Records roles(id, code, name) {
@@ -262,6 +373,10 @@ Records roles(id, code, name) {
   2, 'SupplyDirector', 'Supply Director'
   3, 'Finance', 'Finance'
   4, 'Admin', 'Admin'
+}
+
+Records receipt_number_counters(series, last_number) {
+  'DEN', 0
 }
 
 Records quality_classes(code, name, percentage, min_percentage, max_percentage) {

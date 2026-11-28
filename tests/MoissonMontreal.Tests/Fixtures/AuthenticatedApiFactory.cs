@@ -57,13 +57,14 @@ public class AuthenticatedApiFactory : WebApplicationFactory<Program>
         string scope = "access_as_user",
         DateTime? expires = null,
         SecurityKey? signingKey = null,
-        string? email = Email)
+        string? email = Email,
+        string objectId = ObjectId)
     {
         var tokenTenantId = tenantId ?? TenantId;
         var expiresAt = expires ?? DateTime.UtcNow.AddHours(1);
         var claims = new Dictionary<string, object>
         {
-            ["oid"] = ObjectId,
+            ["oid"] = objectId,
             ["tid"] = tokenTenantId,
             ["name"] = Name,
             ["preferred_username"] = PreferredUsername,

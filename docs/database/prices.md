@@ -70,7 +70,27 @@ The price that applies on a given day is the one with the latest effective date 
 | 2027-03-10 | $3.90 |
 | 2026-10-20 | None, since it is before the first price. The app must show a clear error instead of guessing. |
 
-Looking up the price for a date is done by the app, in issue #25.
+### Looking up a price in the app
+
+The app looks up the price for a date with `PriceService.GetPriceInEffectAsync` ([PriceService.cs](../../src/MoissonMontreal.Api/Pricing/PriceService.cs)). The rule itself is in `PriceHistory.FindPriceInEffect` ([PriceHistory.cs](../../src/MoissonMontreal.Core/Pricing/PriceHistory.cs)), so it is written in one place only.
+
+| Situation | What the app does |
+| --- | --- |
+| A price applies on that day | Returns that price |
+| The day is before the first price | Throws `PriceNotFoundException`, which gives the first effective date of the item |
+| The item has no price at all | Throws `PriceNotFoundException`, with no first effective date |
+| The catalog item does not exist | Throws `CatalogItemNotFoundException` |
+
+The app never falls back to another price, such as the first or the closest one, so a donation is never valued with a wrong price.
+
+The API exposes the same information:
+
+| Request | Answer |
+| --- | --- |
+| `GET /api/catalog-items/{id}/prices` | 200 with every price of the item, oldest effective date first. The list is empty when the item has no price yet. 404 when the item does not exist. |
+| `GET /api/catalog-items/{id}/prices/in-effect?date=2026-11-15` | 200 with the price in effect on that day. 404 with a clear message when the item does not exist or has no price on that day (the answer then includes `firstEffectiveDate`). 400 when the date is missing or is not a valid `yyyy-MM-dd` date. |
+
+Any user of the tenant with a valid token (with the `access_as_user` scope) can read prices. No permission is checked, so the person does not need to have been added to the app.
 
 ## Prices on the grid and prices on receipts
 

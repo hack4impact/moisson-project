@@ -8,8 +8,8 @@ The database has four parts:
 | --- | --- | --- |
 | Accounts | roles, users | Who can use the app and what each person is allowed to do |
 | Donations | donors, food_items, quality_classes | Who gave food, what they gave, when, and in what condition |
-| Tax receipts | receipts, receipt_items | The receipts given to donors and the value of each food item on them |
-| Price grid | catalog_items, prices | The types of food the app knows, and the price of each one over time |
+| Tax receipts | receipts, receipt_items, receipt_status_changes, receipt_number_counters | The receipts given to donors, the value of each food item on them, every change of their status, and their numbers |
+| Price grid | catalog_items, prices, bc_item_mappings, bc_item_mapping_changes | The types of food the app knows, the price of each one over time, and which Business Central item each one values |
 
 ## Diagram
 
@@ -63,9 +63,9 @@ More detail: [Quality classes](quality-classes.md).
 
 ### receipts
 
-One row per tax receipt. It holds the donor who receives it, the total value in dollars and cents, and the date of the receipt.
+One row per tax receipt. It holds the donor who receives it, the total value in dollars and cents, the date of the receipt, its status (draft, waiting for the supply director, waiting for Finance, approved, issued or cancelled) and, once issued, its number, such as DEN_000001.
 
-More detail: [Receipts and their prices](receipts.md).
+More detail: [Receipts and their prices](receipts.md) and [Receipt statuses](receipt-statuses.md).
 
 ### receipt_items
 
@@ -73,11 +73,35 @@ The lines of a receipt, one per food item. Each line keeps a copy of everything 
 
 More detail: [Receipts and their prices](receipts.md).
 
+### receipt_status_changes
+
+The history of each receipt: one row every time its status changes, for example when Finance approves it. Each row keeps the status before and after, the employee who made the change, the date and time, and the reason when the receipt is refused or cancelled. Rows are only added, never changed, so the history shows who did what.
+
+More detail: [Receipt statuses](receipt-statuses.md).
+
+### receipt_number_counters
+
+The last receipt number given, one row per series. There is a single series for now: DEN, for food donations. When a receipt is issued, this row is locked and increased by one, so two receipts issued at the same time never get the same number, and a number is never skipped.
+
+More detail: [Receipt statuses](receipt-statuses.md#receipt-numbers).
+
 ### catalog_items
 
 The types of food the app knows, such as bread or apples. A donation of bread and the next donation of bread are two different food items, but they share the same catalog item, and so the same price. Each catalog item has a name, a category, a unique Business Central code, a unit and a quality class.
 
 More detail: [Food catalog](catalog.md) and [Price grid](prices.md).
+
+### bc_item_mappings
+
+The remembered match between an item code from the Business Central donation export and the catalog item whose price values it. A person confirms each mapping once, and the next imports reuse it without asking again. A code can only have one mapping. When the catalog item is no longer active, the mapping must be reviewed.
+
+More detail: [Food catalog](catalog.md).
+
+### bc_item_mapping_changes
+
+The history of every mapping created, changed or deleted, with who did it and when. It keeps a copy of the code instead of a link, so the history stays after a mapping is deleted.
+
+More detail: [Food catalog](catalog.md).
 
 ### prices
 
@@ -106,7 +130,7 @@ Each line is rounded to the cent, and an amount exactly halfway, such as $0.225,
 The database itself refuses anything that would break these rules, even if there were a mistake in the app.
 
 **No duplicate receipts**
-- A food item can be on only one receipt, so the same donation cannot get two tax receipts.
+- A food item can be on only one receipt that is not cancelled, so the same donation cannot get two valid tax receipts. Once a receipt is cancelled, its food items can go on a new receipt, and the cancelled receipt keeps its lines.
 - The same food item cannot appear twice on one receipt.
 
 **One price per day**
@@ -141,6 +165,17 @@ The database itself refuses anything that would break these rules, even if there
 - A donor is an individual or an organization.
 - Two donors cannot have the same Business Central code, and a donor's code cannot be empty when it is set.
 
+**Receipt numbers**
+- Two receipts cannot have the same number.
+- An issued receipt always has a number, and a receipt that was never issued has none.
+- A number is DEN_ followed by 6 digits, such as DEN_000001.
+
+**Receipt statuses**
+- A receipt and each change in its history can only have one of the six known statuses.
+- A change in the history must go from one status to a different one.
+- Refusing or cancelling a receipt requires a reason, and a reason cannot be empty.
+- A receipt cannot be deleted once its status has changed, and an employee cannot be deleted once they changed a status, so the history is never lost.
+
 **Accounts**
 - Two employees cannot have the same email or the same Microsoft account.
 - Emails are stored in lowercase, so the same address cannot be entered twice with different capital letters.
@@ -159,11 +194,9 @@ These parts of the project are planned in their own issues and will add tables l
 | --- | --- |
 | Price lookup by date | #25 |
 | Calculation of a donation's value | #30 |
-| Receipt statuses: prepared, approved at two levels, issued, cancelled and replaced | #31 |
-| Receipt numbering, unique and with no gaps | #32 |
+| Replacement receipts, linked to the receipt they cancel | To plan |
 | PDF receipt | #40 |
 
-When cancelled and replacement receipts are added, the rule "a food item can be on only one receipt" will be adjusted so that a replacement receipt can list the same food as the receipt it replaces.
 
 ## Words used on this page
 
@@ -186,10 +219,12 @@ Each table comes from one of these migrations:
 | catalog_items, prices | [20261110175320_CreateCatalogItemsAndPrices](../../src/MoissonMontreal.Api/Data/Migrations/20261110175320_CreateCatalogItemsAndPrices.cs) | [0004_create_catalog_items_and_prices.sql](sql/0004_create_catalog_items_and_prices.sql) | [prices.md](prices.md) |
 | quality_classes | [20261112060008_CreateQualityClasses](../../src/MoissonMontreal.Api/Data/Migrations/20261112060008_CreateQualityClasses.cs) | [0005_create_quality_classes.sql](sql/0005_create_quality_classes.sql) | [quality-classes.md](quality-classes.md) |
 | catalog item details | [20261117040905_AddCatalogItemDetails](../../src/MoissonMontreal.Api/Data/Migrations/20261117040905_AddCatalogItemDetails.cs) | [0006_add_catalog_item_details.sql](sql/0006_add_catalog_item_details.sql) | [catalog.md](catalog.md) |
-| donor profile | [20261118185010_AddDonorProfile](../../src/MoissonMontreal.Api/Data/Migrations/20261118185010_AddDonorProfile.cs) | [0007_add_donor_profile.sql](sql/0007_add_donor_profile.sql) | [donors.md](donors.md) |
+| receipt status, receipt_status_changes | [20261127052039_AddReceiptStatus](../../src/MoissonMontreal.Api/Data/Migrations/20261127052039_AddReceiptStatus.cs) | [0009_add_receipt_status.sql](sql/0009_add_receipt_status.sql) | [receipts.md](receipts.md) |
+| receipt number, receipt_number_counters | [20261127053347_AddReceiptNumbers](../../src/MoissonMontreal.Api/Data/Migrations/20261127053347_AddReceiptNumbers.cs) | [0010_add_receipt_numbers.sql](sql/0010_add_receipt_numbers.sql) | [receipts.md](receipts.md) |
+| donor profile | [20261128005314_AddDonorProfile](../../src/MoissonMontreal.Api/Data/Migrations/20261128005314_AddDonorProfile.cs) | [0011_add_donor_profile.sql](sql/0011_add_donor_profile.sql) | [donors.md](donors.md) |
 
 The SQL scripts must be run in order on an empty database.
 
 Every date and time is converted to UTC before it is written, by [UtcDateTimeOffsetConverter.cs](../../src/MoissonMontreal.Api/Data/UtcDateTimeOffsetConverter.cs), which [MoissonDbContext.cs](../../src/MoissonMontreal.Api/Data/MoissonDbContext.cs) applies to every DateTimeOffset column.
 
-The tests in [SchemaDiagramTests.cs](../../tests/MoissonMontreal.Tests/Docs/SchemaDiagramTests.cs) build an empty database from the migrations and check that every .dbml file in this folder matches it exactly: tables, columns, types, defaults, keys, indexes, checks, links and the roles data. Defaults and checks are compared by their full expression, after PostgreSQL rewrites the diagram's version in its own spelling. dbdiagram.io cannot draw a partial index (an index with a WHERE condition) or an index on an expression, so the tests fail if a migration adds one. When that happens, for example for replacement receipts (#31), describe the condition in the index note and extend the tests. Run them with `dotnet test --filter "FullyQualifiedName~MoissonMontreal.Tests.Docs"`. When a migration changes the schema, update [schema.dbml](schema.dbml), the .dbml of that part, and the images.
+The tests in [SchemaDiagramTests.cs](../../tests/MoissonMontreal.Tests/Docs/SchemaDiagramTests.cs) build an empty database from the migrations and check that every .dbml file in this folder matches it exactly: tables, columns, types, defaults, keys, indexes, checks, links and the roles data. Defaults and checks are compared by their full expression, after PostgreSQL rewrites the diagram's version in its own spelling. dbdiagram.io cannot draw a partial index (an index with a WHERE condition), so its condition goes at the start of the index note, as Partial index where `condition`, which the tests read and compare with the database. An index on an expression cannot be described yet, so the tests fail if a migration adds one. Run them with `dotnet test --filter "FullyQualifiedName~MoissonMontreal.Tests.Docs"`. When a migration changes the schema, update [schema.dbml](schema.dbml), the .dbml of that part, and the images.

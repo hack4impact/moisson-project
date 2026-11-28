@@ -70,8 +70,8 @@ The donor screen of the desktop app is temporary. It opens a donor by its id, cr
 
 | Item | Location |
 | --- | --- |
-| Entity Framework migration | [20261118185010_AddDonorProfile](../../src/MoissonMontreal.Api/Data/Migrations/20261118185010_AddDonorProfile.cs) |
-| Equivalent SQL script | [0007_add_donor_profile.sql](sql/0007_add_donor_profile.sql) |
+| Entity Framework migration | [20261128005314_AddDonorProfile](../../src/MoissonMontreal.Api/Data/Migrations/20261128005314_AddDonorProfile.cs) |
+| Equivalent SQL script | [0011_add_donor_profile.sql](sql/0011_add_donor_profile.sql) |
 | Table settings | [DonorConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/DonorConfiguration.cs) |
 | API | [DonorsController.cs](../../src/MoissonMontreal.Api/Controllers/DonorsController.cs) |
 | Validation | [DonorValidator.cs](../../src/MoissonMontreal.Api/Donors/DonorValidator.cs) |
@@ -80,6 +80,6 @@ Donors that existed before this migration get the type organization, and their n
 
 Rolling the migration back removes the new columns and keeps the donors with their name, address, postal code and contact person.
 
-The SQL script is generated from the migration with `dotnet ef migrations script AddCatalogItemDetails AddDonorProfile --project src/MoissonMontreal.Api --output docs/database/sql/0007_add_donor_profile.sql`. It must be run after the scripts 0001 to 0006. It records itself in the migration history, so Entity Framework will not apply it a second time.
+The SQL script is generated from the migration with `dotnet ef migrations script AddReceiptNumbers AddDonorProfile --project src/MoissonMontreal.Api --output docs/database/sql/0011_add_donor_profile.sql`. It must be run after the scripts 0001 to 0010. It records itself in the migration history, so Entity Framework will not apply it a second time.
 
-The generated file starts with a UTF-8 byte order mark (BOM). Remove it before committing, for example with `sed -i '1s/^\xEF\xBB\xBF//' docs/database/sql/0007_add_donor_profile.sql`.
+The generated file starts with a UTF-8 byte order mark (BOM). Remove it before committing, for example with `sed -i '1s/^\xEF\xBB\xBF//' docs/database/sql/0011_add_donor_profile.sql`.

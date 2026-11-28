@@ -24,7 +24,7 @@ ALTER TABLE donors ADD CONSTRAINT ck_donors_business_central_code_not_empty CHEC
 ALTER TABLE donors ADD CONSTRAINT ck_donors_type CHECK (type IN ('individual', 'organization'));
 
 INSERT INTO "__EFMigrationsHistory" (migration_id, product_version)
-VALUES ('20261118185010_AddDonorProfile', '10.0.13');
+VALUES ('20261128005314_AddDonorProfile', '10.0.13');
 
 COMMIT;
 

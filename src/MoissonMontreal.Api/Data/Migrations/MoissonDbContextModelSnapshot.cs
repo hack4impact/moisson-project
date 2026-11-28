@@ -22,6 +22,107 @@ namespace MoissonMontreal.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.BcItemMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("BusinessCentralCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("business_central_code");
+
+                    b.Property<Guid>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<DateTimeOffset>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at");
+
+                    b.Property<int>("ConfirmedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("confirmed_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bc_item_mappings");
+
+                    b.HasIndex("BusinessCentralCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_bc_item_mappings_business_central_code");
+
+                    b.HasIndex("CatalogItemId")
+                        .HasDatabaseName("ix_bc_item_mappings_catalog_item_id");
+
+                    b.HasIndex("ConfirmedByUserId")
+                        .HasDatabaseName("ix_bc_item_mappings_confirmed_by_user_id");
+
+                    b.ToTable("bc_item_mappings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_bc_item_mappings_business_central_code_not_empty", "length(business_central_code) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.BcItemMappingChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("BusinessCentralCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("business_central_code");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("ChangedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<Guid?>("NewCatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("new_catalog_item_id");
+
+                    b.Property<Guid?>("OldCatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("old_catalog_item_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bc_item_mapping_changes");
+
+                    b.HasIndex("BusinessCentralCode")
+                        .HasDatabaseName("ix_bc_item_mapping_changes_business_central_code");
+
+                    b.HasIndex("ChangedByUserId")
+                        .HasDatabaseName("ix_bc_item_mapping_changes_changed_by_user_id");
+
+                    b.HasIndex("NewCatalogItemId")
+                        .HasDatabaseName("ix_bc_item_mapping_changes_new_catalog_item_id");
+
+                    b.HasIndex("OldCatalogItemId")
+                        .HasDatabaseName("ix_bc_item_mapping_changes_old_catalog_item_id");
+
+                    b.ToTable("bc_item_mapping_changes", (string)null);
+                });
+
             modelBuilder.Entity("MoissonMontreal.Core.Entities.CatalogItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -48,6 +149,12 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -55,7 +162,6 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("name");
 
                     b.Property<string>("QualityClassCode")
-                        .IsRequired()
                         .HasMaxLength(1)
                         .HasColumnType("character varying(1)")
                         .HasColumnName("quality_class");
@@ -367,6 +473,19 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("receipt_date")
                         .HasDefaultValueSql("(now() AT TIME ZONE 'America/Montreal')::date");
 
+                    b.Property<string>("ReceiptNumber")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("receipt_number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Draft")
+                        .HasColumnName("status");
+
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)")
@@ -381,8 +500,20 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.HasIndex("DonorId")
                         .HasDatabaseName("ix_receipts_donor_id");
 
+                    b.HasIndex("ReceiptNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_receipts_receipt_number");
+
                     b.ToTable("receipts", null, t =>
                         {
+                            t.HasCheckConstraint("ck_receipts_issued_has_receipt_number", "status <> 'Issued' OR receipt_number IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_receipts_receipt_number_format", "receipt_number ~ '^DEN_[0-9]{6}$'");
+
+                            t.HasCheckConstraint("ck_receipts_receipt_number_only_once_issued", "status IN ('Issued', 'Cancelled') OR receipt_number IS NULL");
+
+                            t.HasCheckConstraint("ck_receipts_status_valid", "status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')");
+
                             t.HasCheckConstraint("ck_receipts_total_amount_not_negative", "total_amount >= 0");
                         });
                 });
@@ -411,6 +542,12 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnType("numeric(12,2)")
                         .HasColumnName("quantity");
 
+                    b.Property<bool>("ReceiptCancelled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("receipt_cancelled");
+
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -427,7 +564,8 @@ namespace MoissonMontreal.Api.Data.Migrations
 
                     b.HasIndex("FoodItemId")
                         .IsUnique()
-                        .HasDatabaseName("ix_receipt_items_food_item_id");
+                        .HasDatabaseName("ix_receipt_items_food_item_id")
+                        .HasFilter("NOT receipt_cancelled");
 
                     b.HasIndex("FoodItemId", "DonorId")
                         .HasDatabaseName("ix_receipt_items_food_item_id_donor_id");
@@ -444,6 +582,95 @@ namespace MoissonMontreal.Api.Data.Migrations
                             t.HasCheckConstraint("ck_receipt_items_unit_not_empty", "length(unit) > 0");
 
                             t.HasCheckConstraint("ck_receipt_items_unit_price_positive", "unit_price > 0");
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.ReceiptNumberCounter", b =>
+                {
+                    b.Property<string>("Series")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("series");
+
+                    b.Property<int>("LastNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_number");
+
+                    b.HasKey("Series")
+                        .HasName("pk_receipt_number_counters");
+
+                    b.ToTable("receipt_number_counters", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_receipt_number_counters_last_number_in_range", "last_number BETWEEN 0 AND 999999");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Series = "DEN",
+                            LastNumber = 0
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.ReceiptStatusChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("ChangedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("from_status");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("receipt_id");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("to_status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_receipt_status_changes");
+
+                    b.HasIndex("ChangedByUserId")
+                        .HasDatabaseName("ix_receipt_status_changes_changed_by_user_id");
+
+                    b.HasIndex("ReceiptId", "ChangedAt")
+                        .HasDatabaseName("ix_receipt_status_changes_receipt_id_changed_at");
+
+                    b.ToTable("receipt_status_changes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_receipt_status_changes_from_status_valid", "from_status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')");
+
+                            t.HasCheckConstraint("ck_receipt_status_changes_reason_not_empty", "length(reason) > 0");
+
+                            t.HasCheckConstraint("ck_receipt_status_changes_reason_required", "to_status NOT IN ('Draft', 'Cancelled') OR reason IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_receipt_status_changes_status_differs", "from_status <> to_status");
+
+                            t.HasCheckConstraint("ck_receipt_status_changes_to_status_valid", "to_status IN ('Draft', 'PendingSupplyApproval', 'PendingFinanceApproval', 'Approved', 'Issued', 'Cancelled')");
                         });
                 });
 
@@ -570,13 +797,57 @@ namespace MoissonMontreal.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.BcItemMapping", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.CatalogItem", "CatalogItem")
+                        .WithMany()
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bc_item_mappings_catalog_items_catalog_item_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.User", "ConfirmedBy")
+                        .WithMany()
+                        .HasForeignKey("ConfirmedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bc_item_mappings_users_confirmed_by_user_id");
+
+                    b.Navigation("CatalogItem");
+
+                    b.Navigation("ConfirmedBy");
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.BcItemMappingChange", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.User", "ChangedBy")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bc_item_mapping_changes_users_changed_by_user_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.CatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("NewCatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_bc_item_mapping_changes_catalog_items_new_catalog_item_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.CatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("OldCatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_bc_item_mapping_changes_catalog_items_old_catalog_item_id");
+
+                    b.Navigation("ChangedBy");
+                });
+
             modelBuilder.Entity("MoissonMontreal.Core.Entities.CatalogItem", b =>
                 {
                     b.HasOne("MoissonMontreal.Core.Entities.QualityClass", "QualityClass")
                         .WithMany()
                         .HasForeignKey("QualityClassCode")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_catalog_items_quality_classes_quality_class");
 
                     b.Navigation("QualityClass");
@@ -658,6 +929,27 @@ namespace MoissonMontreal.Api.Data.Migrations
                     b.Navigation("Receipt");
                 });
 
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.ReceiptStatusChange", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.User", "ChangedBy")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_receipt_status_changes_users_changed_by_user_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.Receipt", "Receipt")
+                        .WithMany("StatusChanges")
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_receipt_status_changes_receipts_receipt_id");
+
+                    b.Navigation("ChangedBy");
+
+                    b.Navigation("Receipt");
+                });
+
             modelBuilder.Entity("MoissonMontreal.Core.Entities.User", b =>
                 {
                     b.HasOne("MoissonMontreal.Core.Entities.Role", "Role")
@@ -683,6 +975,8 @@ namespace MoissonMontreal.Api.Data.Migrations
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Receipt", b =>
                 {
                     b.Navigation("Items");
+
+                    b.Navigation("StatusChanges");
                 });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.Role", b =>

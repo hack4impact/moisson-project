@@ -89,7 +89,16 @@ internal static partial class DbmlReader
                         ? Unquote(quoted)
                         : throw new FormatException($"Index without a name in {table}: {indexLine}");
                     var primary = settings.ContainsKey("pk");
-                    Add(indexes, name, new SchemaIndex(Columns(match.Groups[1].Value), primary, primary || settings.ContainsKey("unique")), "Index");
+                    var condition = settings.GetValueOrDefault("note") is { } note ? IndexCondition().Match(Unquote(note)) : null;
+                    Add(
+                        indexes,
+                        name,
+                        new SchemaIndex(
+                            Columns(match.Groups[1].Value),
+                            primary,
+                            primary || settings.ContainsKey("unique"),
+                            condition is { Success: true } ? condition.Groups[1].Value : null),
+                        "Index");
                 }
             }
             else if (line == "checks {")
@@ -272,4 +281,7 @@ internal static partial class DbmlReader
 
     [GeneratedRegex(@"^`(.*)`\s*\[(.*)\]$")]
     private static partial Regex CheckLine();
+
+    [GeneratedRegex(@"^Partial index where `([^`]+)`")]
+    private static partial Regex IndexCondition();
 }

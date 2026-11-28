@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MoissonMontreal.Api.Data.Migrations
 {
     [DbContext(typeof(MoissonDbContext))]
-    [Migration("20261118185010_AddDonorProfile")]
-    partial class AddDonorProfile
+    [Migration("20261124214039_AddBcItemMappings")]
+    partial class AddBcItemMappings
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,107 @@ namespace MoissonMontreal.Api.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.BcItemMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("BusinessCentralCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("business_central_code");
+
+                    b.Property<Guid>("CatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("catalog_item_id");
+
+                    b.Property<DateTimeOffset>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at");
+
+                    b.Property<int>("ConfirmedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("confirmed_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bc_item_mappings");
+
+                    b.HasIndex("BusinessCentralCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_bc_item_mappings_business_central_code");
+
+                    b.HasIndex("CatalogItemId")
+                        .HasDatabaseName("ix_bc_item_mappings_catalog_item_id");
+
+                    b.HasIndex("ConfirmedByUserId")
+                        .HasDatabaseName("ix_bc_item_mappings_confirmed_by_user_id");
+
+                    b.ToTable("bc_item_mappings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_bc_item_mappings_business_central_code_not_empty", "length(business_central_code) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.BcItemMappingChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("BusinessCentralCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("business_central_code");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("ChangedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<Guid?>("NewCatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("new_catalog_item_id");
+
+                    b.Property<Guid?>("OldCatalogItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("old_catalog_item_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bc_item_mapping_changes");
+
+                    b.HasIndex("BusinessCentralCode")
+                        .HasDatabaseName("ix_bc_item_mapping_changes_business_central_code");
+
+                    b.HasIndex("ChangedByUserId")
+                        .HasDatabaseName("ix_bc_item_mapping_changes_changed_by_user_id");
+
+                    b.HasIndex("NewCatalogItemId")
+                        .HasDatabaseName("ix_bc_item_mapping_changes_new_catalog_item_id");
+
+                    b.HasIndex("OldCatalogItemId")
+                        .HasDatabaseName("ix_bc_item_mapping_changes_old_catalog_item_id");
+
+                    b.ToTable("bc_item_mapping_changes", (string)null);
+                });
 
             modelBuilder.Entity("MoissonMontreal.Core.Entities.CatalogItem", b =>
                 {
@@ -51,6 +152,12 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -58,7 +165,6 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("name");
 
                     b.Property<string>("QualityClassCode")
-                        .IsRequired()
                         .HasMaxLength(1)
                         .HasColumnType("character varying(1)")
                         .HasColumnName("quality_class");
@@ -107,16 +213,6 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("address");
 
-                    b.Property<string>("BusinessCentralCode")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("business_central_code");
-
-                    b.Property<string>("City")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("city");
-
                     b.Property<string>("ContactPerson")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
@@ -128,60 +224,23 @@ namespace MoissonMontreal.Api.Data.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<string>("Email")
-                        .HasMaxLength(254)
-                        .HasColumnType("character varying(254)")
-                        .HasColumnName("email");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
-                    b.Property<string>("Notes")
-                        .HasColumnType("text")
-                        .HasColumnName("notes");
-
-                    b.Property<string>("Phone")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("phone");
-
                     b.Property<string>("PostalCode")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("postal_code");
 
-                    b.Property<string>("Province")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("province");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("type");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
                     b.HasKey("Id")
                         .HasName("pk_donors");
 
-                    b.HasIndex("BusinessCentralCode")
-                        .IsUnique()
-                        .HasDatabaseName("ix_donors_business_central_code");
-
                     b.ToTable("donors", null, t =>
                         {
-                            t.HasCheckConstraint("ck_donors_business_central_code_not_empty", "length(business_central_code) > 0");
-
                             t.HasCheckConstraint("ck_donors_name_not_empty", "length(name) > 0");
-
-                            t.HasCheckConstraint("ck_donors_type", "type IN ('individual', 'organization')");
                         });
                 });
 
@@ -573,13 +632,57 @@ namespace MoissonMontreal.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.BcItemMapping", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.CatalogItem", "CatalogItem")
+                        .WithMany()
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bc_item_mappings_catalog_items_catalog_item_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.User", "ConfirmedBy")
+                        .WithMany()
+                        .HasForeignKey("ConfirmedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bc_item_mappings_users_confirmed_by_user_id");
+
+                    b.Navigation("CatalogItem");
+
+                    b.Navigation("ConfirmedBy");
+                });
+
+            modelBuilder.Entity("MoissonMontreal.Core.Entities.BcItemMappingChange", b =>
+                {
+                    b.HasOne("MoissonMontreal.Core.Entities.User", "ChangedBy")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_bc_item_mapping_changes_users_changed_by_user_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.CatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("NewCatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_bc_item_mapping_changes_catalog_items_new_catalog_item_id");
+
+                    b.HasOne("MoissonMontreal.Core.Entities.CatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("OldCatalogItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_bc_item_mapping_changes_catalog_items_old_catalog_item_id");
+
+                    b.Navigation("ChangedBy");
+                });
+
             modelBuilder.Entity("MoissonMontreal.Core.Entities.CatalogItem", b =>
                 {
                     b.HasOne("MoissonMontreal.Core.Entities.QualityClass", "QualityClass")
                         .WithMany()
                         .HasForeignKey("QualityClassCode")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_catalog_items_quality_classes_quality_class");
 
                     b.Navigation("QualityClass");

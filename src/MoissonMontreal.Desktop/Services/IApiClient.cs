@@ -18,6 +18,13 @@ public interface IApiClient
     Task<bool> IsApiReachableAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the signed-in user from the API's <c>api/me</c> endpoint, which requires a valid access token.
+    /// </summary>
+    /// <param name="cancellationToken">Lets the caller stop the request early.</param>
+    /// <returns>The current user, or <c>null</c> if the API refused the request (for example 401 without a valid token) or could not be reached.</returns>
+    Task<CurrentUserDto?> GetCurrentUserAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets one donor.
     /// </summary>
     /// <param name="id">Identifier of the donor.</param>
