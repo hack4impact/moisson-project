@@ -1,15 +1,79 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:MoissonMontreal.Desktop.ViewModels"
+             xmlns:design="using:MoissonMontreal.Desktop.Design"
              x:Class="MoissonMontreal.Desktop.Views.DonorsView"
-             x:DataType="vm:DonorsViewModel">
+             x:DataType="vm:DonorsViewModel"
+             Design.DataContext="{x:Static design:DesignData.Donors}">
 
-    <Design.DataContext>
-        <vm:DonorsViewModel />
-    </Design.DataContext>
+    <UserControl.Styles>
+        <Style Selector="TextBlock.error">
+            <Setter Property="Foreground" Value="Firebrick" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </UserControl.Styles>
 
-    <TextBlock Text="{Binding Title}"
-               HorizontalAlignment="Center"
-               VerticalAlignment="Center" />
+    <ScrollViewer>
+        <StackPanel Margin="16" Spacing="6" MaxWidth="600">
+            <TextBlock Text="{Binding Title}" FontSize="20" />
+
+            <TextBlock Text="Donor id" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox Text="{Binding DonorIdText}" Width="320" />
+                <Button Content="Open" Command="{Binding OpenCommand}" />
+                <Button Content="New" Command="{Binding NewCommand}" />
+            </StackPanel>
+            <TextBlock Classes="error" Text="{Binding DonorIdError}" IsVisible="{Binding DonorIdError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="{Binding FormTitle}" FontSize="16" Margin="0,12,0,0" />
+
+            <TextBlock Text="Type *" />
+            <ComboBox ItemsSource="{Binding Types}" SelectedItem="{Binding Type}" Width="200" />
+            <TextBlock Classes="error" Text="{Binding TypeError}" IsVisible="{Binding TypeError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="Name *" />
+            <TextBox Text="{Binding Name}" />
+            <TextBlock Classes="error" Text="{Binding NameError}" IsVisible="{Binding NameError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="Street address *" />
+            <TextBox Text="{Binding Address}" />
+            <TextBlock Classes="error" Text="{Binding AddressError}" IsVisible="{Binding AddressError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="City *" />
+            <TextBox Text="{Binding City}" />
+            <TextBlock Classes="error" Text="{Binding CityError}" IsVisible="{Binding CityError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="Province *" />
+            <TextBox Text="{Binding Province}" />
+            <TextBlock Classes="error" Text="{Binding ProvinceError}" IsVisible="{Binding ProvinceError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="Postal code *" />
+            <TextBox Text="{Binding PostalCode}" />
+            <TextBlock Classes="error" Text="{Binding PostalCodeError}" IsVisible="{Binding PostalCodeError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="Contact person" />
+            <TextBox Text="{Binding ContactPerson}" />
+            <TextBlock Classes="error" Text="{Binding ContactPersonError}" IsVisible="{Binding ContactPersonError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="Email" />
+            <TextBox Text="{Binding Email}" />
+            <TextBlock Classes="error" Text="{Binding EmailError}" IsVisible="{Binding EmailError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="Phone" />
+            <TextBox Text="{Binding Phone}" />
+            <TextBlock Classes="error" Text="{Binding PhoneError}" IsVisible="{Binding PhoneError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="Business Central code" />
+            <TextBox Text="{Binding BusinessCentralCode}" />
+            <TextBlock Classes="error" Text="{Binding BusinessCentralCodeError}" IsVisible="{Binding BusinessCentralCodeError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <TextBlock Text="Notes" />
+            <TextBox Text="{Binding Notes}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" />
+            <TextBlock Classes="error" Text="{Binding NotesError}" IsVisible="{Binding NotesError, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <Button Content="Save" Command="{Binding SaveCommand}" Margin="0,12,0,0" />
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" IsVisible="{Binding StatusMessage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </StackPanel>
+    </ScrollViewer>
 
 </UserControl>

@@ -21,4 +21,9 @@ public static class DesignData
     /// Login page ViewModel whose sign-in does nothing.
     /// </summary>
     public static LoginViewModel Login { get; } = new(new FakeAuthService(), () => { });
+
+    /// <summary>
+    /// Donors page ViewModel backed by a <see cref="FakeApiClient"/>.
+    /// </summary>
+    public static DonorsViewModel Donors { get; } = new(new FakeApiClient());
 }

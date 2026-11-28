@@ -13,7 +13,7 @@ public class SchemaDriftTests
         { "wrong nullability", "entra_object_id uuid [null", "entra_object_id uuid [not null", "users.entra_object_id: not null" },
         { "wrong default", "default: true", "default: false", "users.is_active: default" },
         { "wrong time zone default", "'America/Montreal'", "'UTC'", "receipts.receipt_date: default" },
-        { "missing default", "created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']\n\n  indexes {\n    id [pk, name: 'pk_donors']", "created_at timestamptz [not null, note: 'Stored in UTC']\n\n  indexes {\n    id [pk, name: 'pk_donors']", "donors.created_at: default" },
+        { "missing default", "created_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']\n  updated_at timestamptz [null, note: 'Stored in UTC, empty if never changed']\n\n  indexes {\n    id [pk, name: 'pk_donors']", "created_at timestamptz [not null, note: 'Stored in UTC']\n  updated_at timestamptz [null, note: 'Stored in UTC, empty if never changed']\n\n  indexes {\n    id [pk, name: 'pk_donors']", "donors.created_at: default" },
         { "missing increment", "id integer [not null, increment]", "id integer [not null]", "users.id: increment" },
         { "renamed index", "name: 'ix_receipt_items_food_item_id',", "name: 'ix_receipt_items_food_item',", "Index ix_receipt_items_food_item_id is missing from the diagram" },
         { "other index condition", "where `NOT receipt_cancelled`", "where `receipt_cancelled`", "Index ix_receipt_items_food_item_id: condition" },
