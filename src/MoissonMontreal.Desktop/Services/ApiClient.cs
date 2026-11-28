@@ -117,7 +117,7 @@ public class ApiClient : IApiClient
                     return DonorResult.Of(DonorResultStatus.Unavailable);
             }
         }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException or NotSupportedException)
+        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or JsonException or NotSupportedException)
         {
             return DonorResult.Of(DonorResultStatus.Unavailable);
         }

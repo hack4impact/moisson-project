@@ -78,7 +78,8 @@ public class DonorsController(MoissonDbContext db) : ControllerBase
     }
 
     /// <summary>
-    /// Replaces the fields of a donor, or returns 404 if no donor has this id. The Business Central code must stay unique.
+    /// Replaces the fields of a donor, or returns 404 if no donor has this id, even when it is deleted during the edit.
+    /// The Business Central code must stay unique. The date of the last change only moves when a field changes.
     /// </summary>
     /// <param name="id">Identifier of the donor.</param>
     /// <param name="request">New fields of the donor.</param>
@@ -99,7 +100,10 @@ public class DonorsController(MoissonDbContext db) : ControllerBase
         }
 
         Apply(donor, fields);
-        donor.UpdatedAt = DateTimeOffset.UtcNow;
+        if (db.Entry(donor).State == EntityState.Modified)
+        {
+            donor.UpdatedAt = DateTimeOffset.UtcNow;
+        }
 
         if (await TrySaveAsync(cancellationToken) is { } conflict)
         {
@@ -124,12 +128,21 @@ public class DonorsController(MoissonDbContext db) : ControllerBase
         donor.BusinessCentralCode = fields.BusinessCentralCode;
     }
 
+    /// <summary>
+    /// Saves the changes, and turns the expected save errors into answers.
+    /// </summary>
+    /// <param name="cancellationToken">Stops the save when the request is cancelled.</param>
+    /// <returns>Null when saved, 404 when the donor was deleted after it was read, or 409 when the Business Central code is already used.</returns>
     private async Task<ActionResult?> TrySaveAsync(CancellationToken cancellationToken)
     {
         try
         {
             await db.SaveChangesAsync(cancellationToken);
             return null;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return NotFound();
         }
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException postgres
             && postgres.ConstraintName == DonorConfiguration.BusinessCentralCodeIndex)

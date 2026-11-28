@@ -29,7 +29,7 @@ One row per donor. The table was created with the donations, and these columns c
 | notes | Free notes about the donor |
 | business_central_code | Code of the donor in Business Central, used by the import. Empty if the donor has none |
 | created_at | Date and time the donor was added, stored in UTC |
-| updated_at | Date and time of the last change, stored in UTC. Empty until the donor is edited |
+| updated_at | Date and time of the last change, stored in UTC. Empty until a field of the donor changes. Saving without any change keeps it as is |
 
 ## Address on the receipt
 
@@ -60,7 +60,7 @@ Donors imported from Business Central keep their Business Central code. Two dono
 | Create a donor | POST `api/donors` | ManageDonors: Supply, Supply Director and Admin |
 | Edit a donor | PUT `api/donors/{id}` | ManageDonors: Supply, Supply Director and Admin |
 
-- A donor id that does not exist returns 404.
+- A donor id that does not exist returns 404, and so does a donor deleted while it is being edited.
 - A missing or invalid field returns 400, with one message per field.
 - A Business Central code that another donor already uses returns 409.
 

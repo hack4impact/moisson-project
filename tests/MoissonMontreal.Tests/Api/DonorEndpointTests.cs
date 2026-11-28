@@ -2,6 +2,11 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
+using MoissonMontreal.Api.Data;
 using MoissonMontreal.Core.Authorization;
 using MoissonMontreal.Core.Dtos;
 using MoissonMontreal.Core.Entities;
@@ -160,6 +165,40 @@ public class DonorEndpointTests(CatalogApiFactory factory) : IClassFixture<Catal
         var response = await client.PutAsJsonAsync($"/api/donors/{Guid.NewGuid()}", Request());
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_ReturnsNotFound_WhenTheDonorIsDeletedDuringTheEdit()
+    {
+        using var adminClient = await CreateClientAsync();
+        var created = await CreateAsync(adminClient, Request(code: null));
+        var interceptor = new DonorDeletedMeanwhile(factory.ConnectionString, created.Id);
+        using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.ConfigureDbContext<MoissonDbContext>(options => options.AddInterceptors(interceptor))));
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateToken());
+
+        var response = await client.PutAsJsonAsync($"/api/donors/{created.Id}", Request(name: "Nom modifié", code: null));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_KeepsTheDateOfTheLastChange_WhenNoFieldChanges()
+    {
+        using var client = await CreateClientAsync();
+        var created = await CreateAsync(client, Request(code: null));
+
+        var unchanged = await UpdateAsync(client, created.Id, Request(name: $"  {created.Name}  ", code: null));
+        Assert.Null(unchanged.UpdatedAt);
+
+        var changed = await UpdateAsync(client, created.Id, Request(name: "Nom modifié", code: null));
+        var changedAgain = await UpdateAsync(client, created.Id, Request(name: "Nom modifié", code: null));
+
+        Assert.NotNull(changed.UpdatedAt);
+        var saved = await client.GetFromJsonAsync<DonorDto>($"/api/donors/{created.Id}");
+        Assert.Equal(saved!.UpdatedAt, changedAgain.UpdatedAt);
+        Assert.True((changed.UpdatedAt.Value - saved.UpdatedAt!.Value).Duration() < TimeSpan.FromMilliseconds(1));
     }
 
     [Fact]
@@ -375,5 +414,29 @@ public class DonorEndpointTests(CatalogApiFactory factory) : IClassFixture<Catal
         var response = await client.PutAsJsonAsync($"/api/donors/{id}", request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<DonorDto>())!;
+    }
+
+    /// <summary>
+    /// Simulates another request that deletes the donor after the edit read it: just before the save, it deletes the donor through another connection, once.
+    /// </summary>
+    private sealed class DonorDeletedMeanwhile(string connectionString, Guid donorId) : SaveChangesInterceptor
+    {
+        private bool _done;
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_done)
+            {
+                _done = true;
+                await using var other = new MoissonDbContext(
+                    new DbContextOptionsBuilder<MoissonDbContext>().UseNpgsql(connectionString).Options);
+                await other.Donors.Where(donor => donor.Id == donorId).ExecuteDeleteAsync(cancellationToken);
+            }
+
+            return result;
+        }
     }
 }

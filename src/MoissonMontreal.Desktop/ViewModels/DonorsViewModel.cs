@@ -203,28 +203,58 @@ public partial class DonorsViewModel : ViewModelBase
     public partial string? BusinessCentralCodeError { get; set; }
 
     /// <summary>
-    /// Opens the donor whose id is typed in <see cref="DonorIdText"/>.
+    /// <c>true</c> while a donor is being opened or saved. Open, New and Save wait for it, so two answers cannot mix in the form.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenCommand))]
+    [NotifyCanExecuteChangedFor(nameof(NewCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    public partial bool IsBusy { get; set; }
+
+    /// <summary>
+    /// Tells whether Open, New and Save can run.
+    /// </summary>
+    /// <returns><c>true</c> when no donor is being opened or saved.</returns>
+    private bool CanEdit() => !IsBusy;
+
+    /// <summary>
+    /// Opens the donor whose id is typed in <see cref="DonorIdText"/>. If it cannot be opened, the form is emptied,
+    /// so the next save cannot change the donor that was open before.
     /// </summary>
     /// <param name="cancellationToken">Cancelled when the user leaves the page.</param>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEdit))]
     private async Task OpenAsync(CancellationToken cancellationToken)
     {
         ClearErrors();
         StatusMessage = null;
         if (!Guid.TryParse(DonorIdText.Trim(), out var id))
         {
+            Fill(null);
             DonorIdError = "Enter the id of a donor, such as 3f2504e0-4f89-11d3-9a0c-0305e82c3301.";
             return;
         }
 
-        var result = await _apiClient.GetDonorAsync(id, cancellationToken);
-        Show(result, "Donor opened.");
+        IsBusy = true;
+        try
+        {
+            var result = await _apiClient.GetDonorAsync(id, cancellationToken);
+            if (result.Status != DonorResultStatus.Success)
+            {
+                Fill(null);
+            }
+
+            Show(result, "Donor opened.");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     /// <summary>
     /// Empties the form to create a new donor.
     /// </summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEdit))]
     private void New()
     {
         ClearErrors();
@@ -237,7 +267,7 @@ public partial class DonorsViewModel : ViewModelBase
     /// Creates the donor, or saves the changes when a donor is open.
     /// </summary>
     /// <param name="cancellationToken">Cancelled when the user leaves the page.</param>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEdit))]
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
         ClearErrors();
@@ -255,10 +285,18 @@ public partial class DonorsViewModel : ViewModelBase
             Notes,
             BusinessCentralCode);
 
-        var result = CurrentDonorId is { } id
-            ? await _apiClient.UpdateDonorAsync(id, request, cancellationToken)
-            : await _apiClient.CreateDonorAsync(request, cancellationToken);
-        Show(result, CurrentDonorId is null ? "Donor created." : "Donor saved.");
+        IsBusy = true;
+        try
+        {
+            var result = CurrentDonorId is { } id
+                ? await _apiClient.UpdateDonorAsync(id, request, cancellationToken)
+                : await _apiClient.CreateDonorAsync(request, cancellationToken);
+            Show(result, CurrentDonorId is null ? "Donor created." : "Donor saved.");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     /// <summary>
@@ -276,12 +314,18 @@ public partial class DonorsViewModel : ViewModelBase
                 StatusMessage = successMessage;
                 break;
             case DonorResultStatus.Invalid:
+                var otherMessages = new List<string>();
                 foreach (var (field, messages) in result.Errors)
                 {
-                    SetError(field, string.Join(" ", messages));
+                    var message = string.Join(" ", messages);
+                    if (!SetError(field, message))
+                    {
+                        otherMessages.Add(message);
+                    }
                 }
 
-                StatusMessage = "Some fields need to be fixed.";
+                otherMessages.Insert(0, "Some fields need to be fixed.");
+                StatusMessage = string.Join(" ", otherMessages);
                 break;
             case DonorResultStatus.NotFound:
                 StatusMessage = "No donor has this id.";
@@ -327,7 +371,8 @@ public partial class DonorsViewModel : ViewModelBase
     /// </summary>
     /// <param name="field">Name of the field, as in <see cref="DonorRequest"/>.</param>
     /// <param name="message">Message to show.</param>
-    private void SetError(string field, string message)
+    /// <returns><c>false</c> when no field of the form has this name, such as <c>$.name</c> from the API's JSON reader.</returns>
+    private bool SetError(string field, string message)
     {
         switch (field)
         {
@@ -342,7 +387,10 @@ public partial class DonorsViewModel : ViewModelBase
             case nameof(DonorRequest.Phone): PhoneError = message; break;
             case nameof(DonorRequest.Notes): NotesError = message; break;
             case nameof(DonorRequest.BusinessCentralCode): BusinessCentralCodeError = message; break;
+            default: return false;
         }
+
+        return true;
     }
 
     /// <summary>
