@@ -35,12 +35,32 @@ One row per employee who has been given access to the app.
 | --- | --- |
 | id | Number that identifies the user, assigned automatically |
 | email | Microsoft work email of the employee. Two users cannot share the same email. |
-| entra_object_id | Identifier of the employee's Microsoft account. It stays empty until the employee's first action that requires a permission. |
+| entra_object_id | Identifier of the employee's Microsoft account. It stays empty until the employee signs in for the first time. |
 | display_name | Name shown in the app |
 | role_id | The role of the employee (see the roles table) |
 | is_active | Yes while the employee has access. Set to no when the admin removes access. |
 | created_at | Date and time the access was given |
 | updated_at | Date and time of the last change, empty if never changed |
+
+The table also uses PostgreSQL's hidden `xmin` column as a version number: it changes on every update, so if two administrators edit the same account at the same time, the second save is refused instead of silently overwriting the first one. No column is added for this.
+
+### user_account_changes
+
+One row per change an administrator made to an account. Only the values the change touched are filled: for example, removing access only fills the two active columns.
+
+| Column | Meaning |
+| --- | --- |
+| id | Identifier of the change, assigned automatically |
+| user_id | The account that was changed |
+| action | Created, Updated (name or email), RoleChanged, Deactivated or Reactivated |
+| old_email / new_email | Email before and after the change |
+| old_display_name / new_display_name | Name before and after the change |
+| old_role_id / new_role_id | Role before and after the change (see the roles table) |
+| old_is_active / new_is_active | Access before and after the change |
+| changed_by_user_id | The administrator who made the change |
+| changed_at | Date and time of the change |
+
+The history keeps old emails and names, including those of employees who left, so it is always known who did what.
 
 ## How the tables are linked
 
@@ -57,12 +77,27 @@ Passwords are not stored in the app. Employees sign in with their Microsoft work
 
 ## Life of an account
 
-1. The admin adds the employee with their work email, name and role.
-2. The first time an employee's action requires a permission, the app links the employee's Microsoft account to that row.
-3. The admin can change the role at any time.
-4. When the admin removes access, the account is deactivated rather than deleted, so the history of who did what is kept.
+1. The admin adds the employee with their work email, name and role, from the Accounts screen.
+2. The first time the employee signs in, the app links their Microsoft account to that row.
+3. The admin can edit the name and email, and change the role at any time. A role change takes effect on the employee's next action.
+4. When the admin removes access, the account is deactivated rather than deleted, so the history of who did what is kept. The employee is refused from their next action and sees the same message as someone who was never added. The admin can give the access back later.
+
+Every change is written to user_account_changes with the admin who made it.
+
+Two rules protect the app from being left without an administrator:
+- An admin cannot change their own role or remove their own access.
+- The last active admin cannot lose the role or be deactivated. An admin who has never signed in still counts as active.
 
 The very first Admin account cannot be added from the app, since no admin exists yet. It is inserted once directly in the database during the setup on Azure.
+
+### Handing over the administrator role
+
+When an administrator leaves, for example at the end of the project:
+1. The leaving admin gives the Admin role to the person who takes over.
+2. The new admin signs in once, so their account shows as linked. This confirms the email is right before the old admin loses access.
+3. The new admin removes the access of the old admin.
+
+The app cannot prevent the only admin from becoming unreachable, for example if they leave Moisson Montréal and IT closes their Microsoft account before they hand over. Their account still counts as an admin in the app, but nobody can sign in with it. The role then has to be given to someone else directly in the database, as for the very first admin. Keeping at least two active admins avoids this.
 
 ## Migration
 
@@ -73,3 +108,15 @@ The very first Admin account cannot be added from the app, since no admin exists
 | Table settings | [UserConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/UserConfiguration.cs) and [RoleConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/RoleConfiguration.cs) |
 
 The SQL script is generated from the migration with `dotnet ef migrations script 0 CreateUsersAndRoles --project src/MoissonMontreal.Api --output docs/database/sql/0001_create_users_and_roles.sql`. It can be run on an empty Azure Database for PostgreSQL server and records itself in the migration history, so Entity Framework will not apply it a second time.
+
+### Account history
+
+| Item | Location |
+| --- | --- |
+| Entity Framework migration | [20261128080800_AddUserAccountChanges](../../src/MoissonMontreal.Api/Data/Migrations/20261128080800_AddUserAccountChanges.cs) |
+| Equivalent SQL script | [0012_add_user_account_changes.sql](sql/0012_add_user_account_changes.sql) |
+| Table settings | [UserAccountChangeConfiguration.cs](../../src/MoissonMontreal.Api/Data/Configurations/UserAccountChangeConfiguration.cs) |
+
+This migration adds the user_account_changes table. The version of users uses the system column `xmin`, so the SQL script adds no column to users.
+
+The SQL script is generated from the migration with `dotnet ef migrations script AddDonorProfile AddUserAccountChanges --project src/MoissonMontreal.Api --output docs/database/sql/0012_add_user_account_changes.sql`, and the byte order mark (BOM) at the start of the generated file is removed. It must be run after [0011_add_donor_profile.sql](sql/0011_add_donor_profile.sql).

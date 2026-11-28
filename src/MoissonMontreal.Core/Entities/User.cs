@@ -6,6 +6,16 @@ namespace MoissonMontreal.Core.Entities;
 public class User
 {
     /// <summary>
+    /// Longest email stored for a user.
+    /// </summary>
+    public const int EmailMaxLength = 256;
+
+    /// <summary>
+    /// Longest name stored for a user.
+    /// </summary>
+    public const int DisplayNameMaxLength = 200;
+
+    /// <summary>
     /// Identifier of the user in the app, assigned by the database.
     /// </summary>
     public int Id { get; set; }
@@ -49,4 +59,10 @@ public class User
     /// Date and time of the last change, or null if the user was never changed.
     /// </summary>
     public DateTimeOffset? UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Version of the row, changed by the database on every update. Two administrators editing the account at the same time
+    /// cannot silently overwrite each other: the second save sees a different version and is refused.
+    /// </summary>
+    public uint Version { get; set; }
 }

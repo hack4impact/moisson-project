@@ -1,0 +1,98 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MoissonMontreal.Desktop.ViewModels"
+             xmlns:dto="using:MoissonMontreal.Core.Dtos"
+             xmlns:design="using:MoissonMontreal.Desktop.Design"
+             x:Class="MoissonMontreal.Desktop.Views.AccountsView"
+             x:DataType="vm:AccountsViewModel"
+             Design.DataContext="{x:Static design:DesignData.Accounts}">
+
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Top" Spacing="8">
+            <TextBlock Text="{Binding Title}" FontSize="20" />
+            <TextBlock Text="{Binding StatusMessage}" Foreground="Green" TextWrapping="Wrap"
+                       IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" TextWrapping="Wrap"
+                       IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+            <Border BorderBrush="Black" BorderThickness="1" Padding="8" IsVisible="{Binding IsConfirmationVisible}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{Binding ConfirmationMessage}" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Confirm" Command="{Binding ConfirmCommand}" />
+                        <Button Content="Cancel" Command="{Binding CancelConfirmationCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Add an employee" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox Text="{Binding NewEmail}" PlaceholderText="Work email" Width="240" />
+                <TextBox Text="{Binding NewDisplayName}" PlaceholderText="Name" Width="180" />
+                <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding NewRole}" PlaceholderText="Role" Width="160">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="dto:RoleDto">
+                            <TextBlock Text="{Binding Name}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Content="Add" Command="{Binding AddCommand}" />
+            </StackPanel>
+        </StackPanel>
+
+        <Grid ColumnDefinitions="*,16,*" Margin="0,16,0,0">
+            <DockPanel Grid.Column="0">
+                <Button DockPanel.Dock="Top" Content="Reload" Command="{Binding LoadCommand}" Margin="0,0,0,8" />
+                <ListBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="dto:AccountDto">
+                            <StackPanel>
+                                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" />
+                                <TextBlock Text="{Binding Email}" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding RoleName}" />
+                                    <TextBlock Text="Deactivated" Foreground="Red" IsVisible="{Binding !IsActive}" />
+                                    <TextBlock Text="Not signed in yet" Foreground="Gray" IsVisible="{Binding !IsLinked}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <StackPanel Grid.Column="2" Spacing="8" IsVisible="{Binding HasSelection}">
+                <TextBlock Text="Edit the account" FontWeight="Bold" />
+                <TextBox Text="{Binding EditEmail}" PlaceholderText="Work email" />
+                <TextBox Text="{Binding EditDisplayName}" PlaceholderText="Name" />
+                <Button Content="Save name and email" Command="{Binding SaveDetailsCommand}" />
+
+                <TextBlock Text="You cannot change your own role or remove your own access. Ask another administrator."
+                           TextWrapping="Wrap" Foreground="Gray" IsVisible="{Binding IsOwnAccountSelected}" />
+
+                <TextBlock Text="Role" FontWeight="Bold" Margin="0,8,0,0" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding EditRole}" Width="160"
+                              IsEnabled="{Binding CanChangeRoleOrAccess}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="dto:RoleDto">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Content="Change role" Command="{Binding AskChangeRoleCommand}"
+                            IsEnabled="{Binding CanChangeRoleOrAccess}" />
+                </StackPanel>
+
+                <TextBlock Text="Access" FontWeight="Bold" Margin="0,8,0,0" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Remove access" Command="{Binding AskDeactivateCommand}"
+                            IsEnabled="{Binding CanChangeRoleOrAccess}"
+                            IsVisible="{Binding SelectedAccount.IsActive, FallbackValue=False}" />
+                    <Button Content="Give access back" Command="{Binding AskReactivateCommand}"
+                            IsVisible="{Binding !SelectedAccount.IsActive, FallbackValue=False}" />
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </DockPanel>
+
+</UserControl>

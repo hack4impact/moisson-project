@@ -6,7 +6,7 @@ The database has four parts:
 
 | Part | Tables | What it holds |
 | --- | --- | --- |
-| Accounts | roles, users | Who can use the app and what each person is allowed to do |
+| Accounts | roles, users, user_account_changes | Who can use the app, what each person is allowed to do, and every change made to their access |
 | Donations | donors, food_items, quality_classes | Who gave food, what they gave, when, and in what condition |
 | Tax receipts | receipts, receipt_items, receipt_status_changes, receipt_number_counters | The receipts given to donors, the value of each food item on them, every change of their status, and their numbers |
 | Price grid | catalog_items, prices, bc_item_mappings, bc_item_mapping_changes | The types of food the app knows, the price of each one over time, and which Business Central item each one values |
@@ -32,6 +32,12 @@ The four roles of the app, one per department: Supply, Supply Director, Finance 
 ### users
 
 One row per employee who has access to the app: their work email, their name, their role, and whether their access is still active. Employees sign in with their Microsoft work account, so no password is stored in the app. When someone leaves, the admin deactivates their access instead of deleting them, so the history of who did what is kept.
+
+More detail: [Users and roles](users-roles.md).
+
+### user_account_changes
+
+The history of every change an administrator made to an account: added, name or email edited, role changed, access removed or given back. Each row keeps who made the change, when, and the values before and after it.
 
 More detail: [Users and roles](users-roles.md).
 

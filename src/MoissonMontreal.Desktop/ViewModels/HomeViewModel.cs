@@ -80,10 +80,10 @@ public partial class HomeViewModel : ViewModelBase
 
             if (isReachable)
             {
-                var user = await _apiClient.GetCurrentUserAsync(cancellationToken);
-                UserStatus = user is null
+                var result = await _apiClient.GetCurrentUserAsync(cancellationToken);
+                UserStatus = result.Value is not { } user
                     ? NotIdentifiedMessage
-                    : $"Signed in as {user.Name ?? user.Email ?? "unknown user"}";
+                    : $"Signed in as {user.Name ?? user.Email ?? "unknown user"} ({user.Role})";
             }
         }
         catch (Exception)

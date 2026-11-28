@@ -3,8 +3,8 @@
 // Matches the migrations 20261103000127_CreateUsersAndRoles, 20261105163138_CreateDonorsAndFoodItems,
 // 20261107041912_CreateReceipts, 20261110175320_CreateCatalogItemsAndPrices,
 // 20261112060008_CreateQualityClasses, 20261117040905_AddCatalogItemDetails,
-// 20261120031640_MakeCatalogItemQualityClassOptional, 20261124214039_AddBcItemMappings, 20261127052039_AddReceiptStatus
-// 20261127053347_AddReceiptNumbers and 20261128005314_AddDonorProfile.
+// 20261120031640_MakeCatalogItemQualityClassOptional, 20261124214039_AddBcItemMappings, 20261127052039_AddReceiptStatus,
+// 20261127053347_AddReceiptNumbers, 20261128005314_AddDonorProfile and 20261128080800_AddUserAccountChanges.
 
 Project moisson_montreal {
   database_type: 'PostgreSQL'
@@ -47,6 +47,32 @@ Table users {
   }
 
   Note: 'Employees allowed to use the app'
+}
+
+Table user_account_changes {
+  id uuid [not null, default: `gen_random_uuid()`]
+  user_id integer [not null, note: 'Account that was changed']
+  action varchar(20) [not null, note: 'Created, Updated, RoleChanged, Deactivated or Reactivated']
+  old_email varchar(256) [null, note: 'Empty when the action did not touch the email']
+  new_email varchar(256) [null]
+  old_display_name varchar(200) [null, note: 'Empty when the action did not touch the name']
+  new_display_name varchar(200) [null]
+  old_role_id integer [null, note: 'Empty when the action did not touch the role']
+  new_role_id integer [null]
+  old_is_active boolean [null, note: 'Empty when the action did not touch the access']
+  new_is_active boolean [null]
+  changed_by_user_id integer [not null, note: 'Administrator who made the change']
+  changed_at timestamptz [not null, default: `now()`, note: 'Stored in UTC']
+
+  indexes {
+    id [pk, name: 'pk_user_account_changes']
+    user_id [name: 'ix_user_account_changes_user_id']
+    changed_by_user_id [name: 'ix_user_account_changes_changed_by_user_id']
+    old_role_id [name: 'ix_user_account_changes_old_role_id']
+    new_role_id [name: 'ix_user_account_changes_new_role_id']
+  }
+
+  Note: 'History of every change made to an account, with the before and after values. Only the values the action touched are filled'
 }
 
 Table donors {
@@ -313,6 +339,14 @@ Table bc_item_mapping_changes {
 
 Ref fk_users_roles_role_id: users.role_id > roles.id [delete: restrict]
 
+Ref fk_user_account_changes_users_user_id: user_account_changes.user_id > users.id [delete: restrict]
+
+Ref fk_user_account_changes_users_changed_by_user_id: user_account_changes.changed_by_user_id > users.id [delete: restrict]
+
+Ref fk_user_account_changes_roles_old_role_id: user_account_changes.old_role_id > roles.id [delete: restrict]
+
+Ref fk_user_account_changes_roles_new_role_id: user_account_changes.new_role_id > roles.id [delete: restrict]
+
 Ref fk_food_items_donors_donor_id: food_items.donor_id > donors.id [delete: restrict]
 
 Ref fk_food_items_catalog_items_catalog_item_id: food_items.catalog_item_id > catalog_items.id [delete: restrict]
@@ -346,6 +380,7 @@ Ref fk_bc_item_mapping_changes_users_changed_by_user_id: bc_item_mapping_changes
 TableGroup accounts {
   roles
   users
+  user_account_changes
 }
 
 TableGroup donations {
